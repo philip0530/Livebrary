@@ -6,7 +6,7 @@ services:
     runtime: node
     plan: free
     region: singapore
-    buildCommand: npm install --include=dev && npm run build
+    buildCommand: npm ci --include=dev --ignore-scripts && npm run db:generate && npm run build
     startCommand: npm run db:migrate && npm run db:seed && npm run start:server
     healthCheckPath: /api/health
     envVars:
