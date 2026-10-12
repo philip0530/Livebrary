@@ -1,0 +1,14 @@
+{
+  "name": "@livebrary/discord-logger",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@livebrary/database": "1.0.0",
+    "@livebrary/shared": "1.0.0",
+    "discord.js": "14.27.0"
+  }
+}

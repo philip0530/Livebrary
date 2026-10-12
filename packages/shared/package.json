@@ -1,0 +1,14 @@
+{
+  "name": "@livebrary/shared",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./keywords": "./src/keywords.ts",
+    "./yjs-text": "./src/yjs-text.ts"
+  },
+  "dependencies": {
+    "yjs": "13.6.33"
+  }
+}

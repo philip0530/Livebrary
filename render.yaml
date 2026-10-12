@@ -1,0 +1,46 @@
+# Render Blueprint. New > Blueprint, then connect the Git repository.
+# Free Postgres expires 30 days after creation. The free web service sleeps after 15 idle minutes.
+services:
+  - type: web
+    name: livebrary
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm run db:migrate && npm run db:seed && npm run start:server
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SERVE_WEB
+        value: "1"
+      - key: HOST
+        value: 0.0.0.0
+      - key: DATABASE_URL
+        fromDatabase:
+          name: livebrary
+          property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ADMIN_CODE_ENCRYPTION_KEY
+        generateValue: true
+      - key: ADMIN_FALLBACK_CODE
+        value: Trust
+      - key: ADMIN_CODE_ROTATION_TIMEZONE
+        value: Asia/Seoul
+      - key: DISCORD_LOG_ENABLED
+        value: "false"
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+
+databases:
+  - name: livebrary
+    plan: free
+    region: singapore
+    databaseName: livebrary
+    user: livebrary
+    postgresMajorVersion: "16"

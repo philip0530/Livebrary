@@ -1,0 +1,47 @@
+{
+  "name": "livebrary",
+  "private": true,
+  "version": "1.0.0",
+  "engines": {
+    "node": "22.x"
+  },
+  "description": "Livebrary — Real-Time Collaborative Code Library",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n web,api -c green,gray \"npm run dev -w @livebrary/web\" \"npm run dev -w @livebrary/api\"",
+    "dev:local": "tsx scripts/dev-local.ts",
+    "build": "npm run build -w @livebrary/web",
+    "start": "tsx scripts/serve.ts",
+    "start:server": "tsx apps/api/src/index.ts",
+    "setup:local": "tsx scripts/setup-local.ts",
+    "admin:code": "tsx scripts/print-admin-code.ts",
+    "admin:grant": "tsx scripts/grant-admin.ts",
+    "admin:discord": "tsx scripts/link-discord.ts",
+    "test": "vitest run",
+    "test:integration": "tsx scripts/test-integration.ts",
+    "test:e2e": "playwright test",
+    "db:generate": "npm run generate -w @livebrary/database",
+    "db:migrate": "npm run migrate:deploy -w @livebrary/database",
+    "db:seed": "npm run seed -w @livebrary/database",
+    "postinstall": "npm run db:generate"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "1.4.10",
+    "@types/node": "24.10.1",
+    "@types/supertest": "6.0.3",
+    "@types/ws": "8.18.1",
+    "concurrently": "10.0.6",
+    "embedded-postgres": "18.4.0-beta.17",
+    "pg": "8.23.1",
+    "playwright": "1.64.0",
+    "@playwright/test": "1.64.0",
+    "supertest": "7.3.1",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "5.0.3"
+  }
+}

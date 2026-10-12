@@ -1,0 +1,371 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SystemRole {
+  USER
+  SYSTEM_ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  LIMITED
+}
+
+enum ProjectVisibility {
+  PRIVATE
+  PUBLIC
+}
+
+enum ProjectRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REVOKED
+  EXPIRED
+}
+
+enum EntryKind {
+  FILE
+  FOLDER
+}
+
+enum AdminCodeStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+enum AuditResult {
+  SUCCESS
+  FAILURE
+  DENIED
+}
+
+enum DiscordQueueStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+enum ChatMessageKind {
+  MESSAGE
+  ACTION
+  SYSTEM
+}
+
+enum SnapshotKind {
+  AUTO
+  MANUAL
+  PRE_RESTORE
+}
+
+model User {
+  id                 String        @id @default(uuid())
+  email              String        @unique
+  username           String
+  usernameNormalized String        @unique
+  passwordHash       String
+  systemRole         SystemRole    @default(USER)
+  status             AccountStatus @default(ACTIVE)
+  avatarUrl          String?
+  bio                String        @default("")
+  primaryLanguage    String        @default("")
+  discordUserId      String?       @unique
+  discordLinkedAt    DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  sessions            UserSession[]
+  ownedProjects       Project[]                 @relation("ProjectOwner")
+  memberships         ProjectMember[]
+  invitationsReceived ProjectInvitation[]       @relation("InvitedUser")
+  invitationsSent     ProjectInvitation[]       @relation("InvitationCreator")
+  messages            ChatMessage[]
+  snapshots           FileSnapshot[]
+  adminSessions       AdminSession[]
+  auditLogs           AuditLog[]
+  preference          UserPreference?
+  sentMessages        DirectMessage[]           @relation("DmSender")
+  receivedMessages    DirectMessage[]           @relation("DmRecipient")
+  channelReads        ChannelRead[]
+  fallbackUpdates     AdminFallbackCredential[] @relation("FallbackUpdater")
+}
+
+model UserSession {
+  id          String    @id @default(uuid())
+  userId      String
+  sessionHash String    @unique
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  ip          String    @default("")
+  userAgent   String    @default("")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model GateSession {
+  id          String   @id @default(uuid())
+  sessionHash String   @unique
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  ip          String   @default("")
+  userAgent   String   @default("")
+
+  @@index([expiresAt])
+}
+
+model UserPreference {
+  userId        String  @id
+  theme         String  @default("classic-green")
+  fontSize      Int     @default(14)
+  lineNumbers   Boolean @default(true)
+  wordWrap      Boolean @default(false)
+  tabSize       Int     @default(2)
+  minimap       Boolean @default(true)
+  crt           Boolean @default(false)
+  notifications Boolean @default(true)
+  panelLayout   Json?
+  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Project {
+  id          String            @id @default(uuid())
+  ownerId     String
+  name        String
+  description String            @default("")
+  visibility  ProjectVisibility @default(PRIVATE)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  owner       User              @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  members     ProjectMember[]
+  invitations ProjectInvitation[]
+  files       ProjectFile[]
+  documents   CollaborativeDocument[]
+  channels    ChatChannel[]
+  auditLogs   AuditLog[]
+
+  @@index([ownerId])
+  @@index([updatedAt])
+}
+
+model ProjectMember {
+  id           String      @id @default(uuid())
+  projectId    String
+  userId       String
+  role         ProjectRole
+  joinedAt     DateTime    @default(now())
+  lastOpenedAt DateTime?
+  project      Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+model ProjectInvitation {
+  id            String           @id @default(uuid())
+  projectId     String
+  invitedUserId String?
+  invitedEmail  String?
+  tokenHash     String           @unique
+  role          ProjectRole
+  expiresAt     DateTime?
+  status        InvitationStatus @default(PENDING)
+  createdById   String
+  createdAt     DateTime         @default(now())
+  project       Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  invitedUser   User?            @relation("InvitedUser", fields: [invitedUserId], references: [id], onDelete: SetNull)
+  createdBy     User             @relation("InvitationCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([projectId, status])
+  @@index([invitedUserId])
+  @@index([invitedEmail])
+}
+
+model ProjectFile {
+  id        String      @id @default(uuid())
+  projectId String
+  parentId  String?
+  name      String
+  type      EntryKind
+  language  String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parent    ProjectFile?  @relation("FileTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children  ProjectFile[] @relation("FileTree")
+  document  CollaborativeDocument?
+  snapshots FileSnapshot[]
+
+  @@index([projectId, parentId])
+}
+
+model CollaborativeDocument {
+  id        String      @id @default(uuid())
+  projectId String
+  fileId    String      @unique
+  yjsState  Bytes
+  updatedAt DateTime    @updatedAt
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  file      ProjectFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+}
+
+model FileSnapshot {
+  id            String       @id @default(uuid())
+  fileId        String
+  documentState Bytes
+  textSnapshot  String
+  contentHash   String
+  kind          SnapshotKind
+  createdById   String?
+  createdAt     DateTime     @default(now())
+  file          ProjectFile  @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  createdBy     User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([fileId, createdAt])
+}
+
+model ChatChannel {
+  id        String        @id @default(uuid())
+  projectId String
+  name      String
+  createdAt DateTime      @default(now())
+  project   Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  messages  ChatMessage[]
+  reads     ChannelRead[]
+
+  @@unique([projectId, name])
+}
+
+model ChatMessage {
+  id        String          @id @default(uuid())
+  channelId String
+  userId    String?
+  content   String
+  kind      ChatMessageKind @default(MESSAGE)
+  createdAt DateTime        @default(now())
+  channel   ChatChannel     @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user      User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([channelId, createdAt])
+}
+
+model ChannelRead {
+  id         String      @id @default(uuid())
+  channelId  String
+  userId     String
+  lastReadAt DateTime    @default(now())
+  channel    ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, userId])
+}
+
+model DirectMessage {
+  id          String    @id @default(uuid())
+  senderId    String
+  recipientId String
+  content     String
+  createdAt   DateTime  @default(now())
+  readAt      DateTime?
+  sender      User      @relation("DmSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient   User      @relation("DmRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, createdAt])
+  @@index([senderId, createdAt])
+}
+
+model AdminAccessCode {
+  id              String          @id @default(uuid())
+  weekStart       DateTime        @unique
+  codeHash        String
+  encryptedCode   String
+  dictionaryHash  String
+  issuedAt        DateTime        @default(now())
+  expiresAt       DateTime
+  status          AdminCodeStatus @default(ACTIVE)
+  publishedAt     DateTime?
+  publishAttempts Int             @default(0)
+  publishError    String          @default("")
+
+  @@index([status, weekStart])
+}
+
+model AdminFallbackCredential {
+  id          String   @id @default(uuid())
+  codeHash    String
+  isActive    Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+  updatedBy   User?    @relation("FallbackUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+}
+
+model AdminSession {
+  id            String    @id @default(uuid())
+  userId        String
+  sessionHash   String    @unique
+  mfaVerifiedAt DateTime
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model AuditLog {
+  id           String           @id @default(uuid())
+  eventType    String
+  actorId      String?
+  projectId    String?
+  resourceType String           @default("")
+  resourceId   String           @default("")
+  result       AuditResult
+  metadata     Json?
+  createdAt    DateTime         @default(now())
+  actor        User?            @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  project      Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  discordQueue DiscordLogQueue[]
+
+  @@index([eventType, createdAt])
+  @@index([actorId, createdAt])
+  @@index([projectId, createdAt])
+}
+
+model DiscordLogQueue {
+  id          String             @id @default(uuid())
+  auditLogId  String?
+  channelKey  String
+  payload     Json
+  status      DiscordQueueStatus @default(PENDING)
+  attempts    Int                @default(0)
+  nextRetryAt DateTime           @default(now())
+  sentAt      DateTime?
+  lastError   String             @default("")
+  createdAt   DateTime           @default(now())
+  auditLog    AuditLog?          @relation(fields: [auditLogId], references: [id], onDelete: SetNull)
+
+  @@index([status, nextRetryAt])
+}
+
+model ServiceSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

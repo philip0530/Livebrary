@@ -1,0 +1,18 @@
+[Unit]
+Description=Livebrary
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=livebrary
+Group=livebrary
+WorkingDirectory=/opt/livebrary
+EnvironmentFile=/etc/livebrary.env
+ExecStart=/opt/livebrary/node_modules/.bin/tsx apps/api/src/index.ts
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
