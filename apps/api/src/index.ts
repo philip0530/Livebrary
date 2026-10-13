@@ -104,7 +104,9 @@ const collaboration = createCollaboration({
 })
 setCollaboration(collaboration)
 
-await ensureFallback()
+await ensureFallback().catch((error: unknown) => {
+  console.error(error instanceof Error ? error.stack ?? error.message : error)
+})
 await startDiscord().catch((error: unknown) => {
   console.warn(error instanceof Error ? `Discord bot not connected: ${error.message}` : 'Discord bot not connected')
 })

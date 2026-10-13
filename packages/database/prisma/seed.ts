@@ -27,7 +27,9 @@ async function main(): Promise<void> {
   const usernameError = validateUsername(username)
   const passwordError = validatePassword(password, email, username)
   if (emailError || usernameError || passwordError) {
-    throw new Error(emailError ?? usernameError ?? passwordError ?? 'Admin seed values are invalid')
+    console.error(`SEED FAILED: ${emailError ?? usernameError ?? passwordError}`)
+    console.error('Admin account was not created. Use an email address, a username of 3-20 English letters, numbers, or underscores, and a password of 10-128 characters containing a letter and a number.')
+    return
   }
   const existing = await prisma.user.findUnique({ where: { email } })
   if (existing) {
@@ -64,8 +66,8 @@ async function main(): Promise<void> {
 
 main()
   .catch((error: unknown) => {
-    console.error(error instanceof Error ? error.message : 'Seed failed')
-    process.exitCode = 1
+    console.error('SEED FAILED')
+    console.error(error instanceof Error ? error.stack ?? error.message : error)
   })
   .finally(async () => {
     await prisma.$disconnect()
