@@ -17,9 +17,7 @@
   },
   "dependencies": {
     "@prisma/client": "6.19.3",
-    "argon2": "0.45.1"
-  },
-  "devDependencies": {
+    "argon2": "0.45.1",
     "prisma": "6.19.3",
     "tsx": "4.23.15"
   }
