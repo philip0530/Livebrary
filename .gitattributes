@@ -1,1 +1,2 @@
 deploy/oracle/*.sh text eol=lf
+scripts/render-build.sh text eol=lf

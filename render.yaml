@@ -6,10 +6,12 @@ services:
     runtime: node
     plan: free
     region: singapore
-    buildCommand: export NPM_CONFIG_PRODUCTION=false; npm ci --include=dev --ignore-scripts && npm rebuild esbuild argon2 && npm run db:generate && npm run build
+    buildCommand: sh scripts/render-build.sh
     startCommand: npm run db:migrate && npm run db:seed && npm run start:server
     healthCheckPath: /api/health
     envVars:
+      - key: SKIP_INSTALL_DEPS
+        value: "true"
       - key: NODE_ENV
         value: production
       - key: SERVE_WEB

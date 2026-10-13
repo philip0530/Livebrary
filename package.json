@@ -27,7 +27,7 @@
     "db:generate": "npm run generate -w @livebrary/database",
     "db:migrate": "npm run migrate:deploy -w @livebrary/database",
     "db:seed": "npm run seed -w @livebrary/database",
-    "postinstall": "npm run db:generate"
+    "postinstall": "node scripts/postinstall.mjs"
   },
   "devDependencies": {
     "@types/cookie-parser": "1.4.10",
