@@ -15,6 +15,7 @@ export const COMMANDS = [
   'msg',
   'who',
   'me',
+  'invite',
 ] as const
 
 export type CommandName = (typeof COMMANDS)[number]
@@ -42,6 +43,7 @@ const HELP: Record<CommandName, string> = {
   msg: '개인 메시지  /msg [user] [text]',
   who: '현재 채널 접속자',
   me: '동작 메시지  /me [action]',
+  invite: '멤버 초대 창 열기  /invite [user]',
 }
 
 export function commandHelp(): string[] {

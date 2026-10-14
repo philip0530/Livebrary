@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 process.env.DISCORD_CLIENT_ID ||= 'test-client-id'
 process.env.DISCORD_CLIENT_SECRET ||= 'test-client-secret'
 loadProjectEnv()
+process.env.REQUIRE_DISCORD_SIGNUP ??= 'false'
 
 const enabled = process.env.LIVEBRARY_INTEGRATION === '1'
 const origin = 'http://127.0.0.1:5173'

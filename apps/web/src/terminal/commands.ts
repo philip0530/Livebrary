@@ -82,6 +82,7 @@ export async function runCommand(line: string): Promise<void> {
     print(' /open PATH  파일 열기')
     print(' /files      파일 목록')
     print(' /users      멤버와 접속자')
+    print(' /invite [U] 멤버 초대 창 열기 (소유자)')
     print(' /who        채널 접속자')
     print(' /whoami     계정')
     print(' /nick NAME  이름 변경')
@@ -120,6 +121,18 @@ export async function runCommand(line: string): Promise<void> {
     if (!rest) { print('usage: /join [ID]', 'warn'); return }
     await openProject(rest.split(/\s+/)[0] ?? rest)
     print('joined', 'ok')
+    return
+  }
+  if (command === 'invite') {
+    if (!workspace.project) { print('open a project first', 'warn'); return }
+    if (workspace.project.role !== 'OWNER') { print('only the project owner can invite', 'warn'); return }
+    const preference = useSession.getState().preference
+    if (preference?.panelLayout?.hideRight) {
+      const next = await api<{ preference: Preference }>('/api/settings', { method: 'PATCH', body: JSON.stringify({ panelLayout: { ...preference.panelLayout, hideRight: false } }) })
+      useSession.getState().patchPreference(next.preference)
+    }
+    workspace.setInvite({ name: rest.split(/\s+/)[0] ?? '' })
+    print('invite panel opened →', 'ok')
     return
   }
   if (command === 'settings') {

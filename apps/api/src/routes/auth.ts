@@ -1,6 +1,9 @@
+import { randomInt } from 'node:crypto'
 import { Router } from 'express'
 import { prisma } from '@livebrary/database'
+import { randomToken, sha256 } from '@livebrary/database/crypto'
 import { hashSecret, verifySecret } from '@livebrary/database/password'
+import { config } from '../config.js'
 import { recordAudit } from '@livebrary/discord-logger'
 import { validateEmail, validatePassword, validateUsername } from '@livebrary/shared'
 import { HttpError, clientIp, userAgent, wrap } from '../http.js'
@@ -16,6 +19,47 @@ import {
   userFromRequest,
 } from '../identity.js'
 import type { Limiter } from '../rate-limit.js'
+
+const SIGNUP_MS = 30 * 60 * 1000
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+
+/** Same 10-character alphabet the Riyan bot's /인증 command accepts. */
+export function signupCode(): string {
+  return Array.from({ length: 10 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join('')
+}
+
+async function assertAvailable(email: string, username: string) {
+  if (await prisma.user.findUnique({ where: { email } })) throw new HttpError(409, 'CONFLICT', '이미 사용 중인 이메일입니다.')
+  if (await prisma.user.findUnique({ where: { usernameNormalized: username.toLowerCase() } })) {
+    throw new HttpError(409, 'CONFLICT', '이미 사용 중인 사용자 이름입니다.')
+  }
+}
+
+async function createUser(input: { email: string; username: string; passwordHash: string; discordUserId: string | null; discordName?: string | null }) {
+  return prisma.$transaction(async (tx) => {
+    const created = await tx.user.create({
+      data: {
+        email: input.email,
+        username: input.username,
+        usernameNormalized: input.username.toLowerCase(),
+        passwordHash: input.passwordHash,
+        systemRole: 'USER',
+        discordUserId: input.discordUserId,
+        discordLinkedAt: input.discordUserId ? new Date() : null,
+        preference: { create: {} },
+      },
+    })
+    await recordAudit({
+      eventType: 'USER_REGISTERED',
+      actorId: created.id,
+      resourceType: 'user',
+      resourceId: created.id,
+      result: 'SUCCESS',
+      metadata: { username: input.username, discord: input.discordName ?? undefined },
+    }, tx)
+    return created
+  })
+}
 
 export function authRouter(limiter: Limiter): Router {
   const router = Router()
@@ -49,31 +93,52 @@ export function authRouter(limiter: Limiter): Router {
     }
     if (password !== (body.passwordConfirm ?? '')) throw new HttpError(400, 'VALIDATION', '비밀번호가 일치하지 않습니다.')
     const allowed = await limiter.hit(`register:${clientIp(req)}`, 5, 60 * 60 * 1000)
-    if (!allowed) throw new HttpError(429, 'RATE_LIMIT', '회원가입 요청이 너무 많습니다.')
-    const emailTaken = await prisma.user.findUnique({ where: { email } })
-    if (emailTaken) throw new HttpError(409, 'CONFLICT', '이미 사용 중인 이메일입니다.')
-    const nameTaken = await prisma.user.findUnique({ where: { usernameNormalized: username.toLowerCase() } })
-    if (nameTaken) throw new HttpError(409, 'CONFLICT', '이미 사용 중인 사용자 이름입니다.')
-    const user = await prisma.$transaction(async (tx) => {
-      const created = await tx.user.create({
-        data: {
-          email,
-          username,
-          usernameNormalized: username.toLowerCase(),
-          passwordHash: await hashSecret(password),
-          systemRole: 'USER',
-          preference: { create: {} },
-        },
-      })
-      await recordAudit({
-        eventType: 'USER_REGISTERED',
-        actorId: created.id,
-        resourceType: 'user',
-        resourceId: created.id,
-        result: 'SUCCESS',
-        metadata: { username },
-      }, tx)
-      return created
+    if (!allowed) {
+      await recordAudit({ eventType: 'ACCESS_DENIED', result: 'DENIED', metadata: { stage: 'register-rate-limit', ip: clientIp(req), email } })
+      throw new HttpError(429, 'RATE_LIMIT', '회원가입 요청이 너무 많습니다.')
+    }
+    await assertAvailable(email, username)
+    const passwordHash = await hashSecret(password)
+    if (!config.requireDiscordSignup) {
+      const user = await createUser({ email, username, passwordHash, discordUserId: null })
+      await issueSession(res, user.id, clientIp(req), userAgent(req))
+      ensureCsrf(req, res)
+      res.status(201).json({ user: publicUser(user) })
+      return
+    }
+    await prisma.pendingRegistration.deleteMany({ where: { OR: [{ email }, { expiresAt: { lt: new Date() } }] } })
+    const token = randomToken()
+    const code = signupCode()
+    const expiresAt = new Date(Date.now() + SIGNUP_MS)
+    await prisma.pendingRegistration.create({
+      data: { email, username, usernameNormalized: username.toLowerCase(), passwordHash, tokenHash: sha256(token), codeHash: sha256(code), expiresAt },
+    })
+    res.status(202).json({ pending: { token, code, expiresAt: expiresAt.toISOString() } })
+  }))
+
+  // The Riyan bot marks the pending row verified once the code is entered inside the Livebrary Discord server.
+  router.post('/register/complete', wrap(async (req, res) => {
+    const token = String((req.body as { token?: unknown }).token ?? '')
+    if (!token || token.length > 128) throw new HttpError(400, 'VALIDATION', '가입 정보가 올바르지 않습니다.')
+    const allowed = await limiter.hit(`register-poll:${clientIp(req)}`, 600, 60 * 60 * 1000)
+    if (!allowed) throw new HttpError(429, 'RATE_LIMIT', '요청이 너무 많습니다.')
+    const pending = await prisma.pendingRegistration.findUnique({ where: { tokenHash: sha256(token) } })
+    if (!pending || pending.expiresAt <= new Date()) throw new HttpError(410, 'EXPIRED', '가입 시간이 만료되었습니다. 처음부터 다시 진행하세요.')
+    if (!pending.verifiedAt || !pending.discordUserId) {
+      res.status(202).json({ pending: true })
+      return
+    }
+    await prisma.pendingRegistration.delete({ where: { id: pending.id } })
+    await assertAvailable(pending.email, pending.username)
+    if (await prisma.user.findUnique({ where: { discordUserId: pending.discordUserId } })) {
+      throw new HttpError(409, 'CONFLICT', '이 Discord 계정은 이미 다른 Livebrary 계정에 연결되어 있습니다.')
+    }
+    const user = await createUser({
+      email: pending.email,
+      username: pending.username,
+      passwordHash: pending.passwordHash,
+      discordUserId: pending.discordUserId,
+      discordName: pending.discordName,
     })
     await issueSession(res, user.id, clientIp(req), userAgent(req))
     ensureCsrf(req, res)

@@ -5,9 +5,9 @@ import cookieParser from 'cookie-parser'
 import express, { type NextFunction, type Request, type Response } from 'express'
 import helmet from 'helmet'
 import { prisma } from '@livebrary/database'
-import { discordStatus } from '@livebrary/discord-logger'
+import { discordStatus, recordAudit } from '@livebrary/discord-logger'
 import { config, originAllowed } from './config.js'
-import { HttpError, safeEqual, wrap } from './http.js'
+import { HttpError, clientIp, safeEqual, wrap } from './http.js'
 import { gateFromRequest, userFromRequest } from './identity.js'
 import type { Limiter } from './rate-limit.js'
 import { createMemoryLimiter } from './rate-limit.js'
@@ -38,18 +38,25 @@ export function createApp(limiter: Limiter = createMemoryLimiter()) {
   app.use((req, res, next) => {
     if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next()
     if (!originAllowed(req.get('origin'), req.get('host'))) {
-      next(new HttpError(403, 'ORIGIN', '요청 출처가 거부되었습니다.'))
+      void suspicious(req, 'origin').finally(() => next(new HttpError(403, 'ORIGIN', '요청 출처가 거부되었습니다.')))
       return
     }
     if (apiPath(req) === '/gate/enter' || apiPath(req) === '/gate/admin') return next()
     const header = req.get('x-csrf-token') ?? ''
     const cookie = (req.cookies as Record<string, string | undefined>).lb_csrf ?? ''
     if (!header || !cookie || !safeEqual(header, cookie)) {
-      next(new HttpError(403, 'CSRF', '보안 토큰이 올바르지 않습니다.'))
+      void suspicious(req, 'csrf').finally(() => next(new HttpError(403, 'CSRF', '보안 토큰이 올바르지 않습니다.')))
       return
     }
     next()
   })
+
+  // One audit row per IP and stage per 10 minutes, so a scripted flood cannot fill the audit log.
+  async function suspicious(req: Request, stage: string) {
+    const ip = clientIp(req)
+    if (!(await limiter.hit(`suspicious:${stage}:${ip}`, 1, 10 * 60 * 1000))) return
+    await recordAudit({ eventType: 'ACCESS_DENIED', result: 'DENIED', metadata: { stage, ip, path: apiPath(req).slice(0, 80) } }).catch(() => undefined)
+  }
 
   app.get('/api/health', wrap(async (_req, res) => {
     let database = 'down'

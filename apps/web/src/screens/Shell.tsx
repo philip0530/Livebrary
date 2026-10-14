@@ -9,7 +9,7 @@ import { filePathMap, loadMessages, logout, openProject, refreshProjects, runCom
 import { EditorPane } from '../editor/EditorPane'
 
 const NICK_COLORS = ['#7BD88F', '#6CC7E6', '#E6C07B', '#D48BD4', '#E68B8B', '#8BE0C2', '#C7D36C', '#8BB4E6']
-const COMMAND_NAMES = ['help', 'projects', 'create', 'join', 'open', 'files', 'users', 'whoami', 'clear', 'leave', 'logout', 'settings', 'nick', 'msg', 'who', 'me']
+const COMMAND_NAMES = ['help', 'projects', 'create', 'join', 'open', 'files', 'users', 'whoami', 'clear', 'leave', 'logout', 'settings', 'nick', 'msg', 'who', 'me', 'invite']
 
 function nickColor(name: string): string {
   let hash = 0
@@ -86,7 +86,6 @@ export function Shell() {
   const terminal = useTerminal()
   const t = useT()
   const [clock, setClock] = useState('')
-  const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState({ name: '', description: '', visibility: 'PRIVATE', template: 'empty' })
   const [historyIndex, setHistoryIndex] = useState(-1)
   const [input, setInput] = useState('')
@@ -315,14 +314,13 @@ export function Shell() {
             </div>
           ))}
         </div>
-        <div className="pane-title">
-          {t('pane.members')}
-          <span className="end">
-            <span className="muted">{workspace.members.length}</span>
-            {project?.role === 'OWNER' ? <>{' '}<button className={`cmd ${adding ? 'on' : ''}`} onClick={() => setAdding(!adding)}>{t('pane.add')}</button></> : null}
-          </span>
-        </div>
-        {adding && project?.role === 'OWNER' ? <div className="pane-block member-add"><InviteForm projectId={project.id} compact /></div> : null}
+        <div className="pane-title">{t('pane.members')}<span className="end muted">{workspace.members.length}</span></div>
+        {workspace.invite && project?.role === 'OWNER' ? (
+          <div className="pane-block member-add">
+            <div className="member-add-head"><span className="accent">/invite</span><button className="cmd" aria-label={t('invite.close')} onClick={() => workspace.setInvite(null)}>×</button></div>
+            <InviteForm key={workspace.invite.nonce} projectId={project.id} initial={workspace.invite.name} compact />
+          </div>
+        ) : null}
         <div className="pane-block who grow">
           {workspace.members.map((member) => (
             <div key={member.userId} className="item">
@@ -587,22 +585,6 @@ function Settings() {
               {THEMES.map((theme) => <option key={theme.id} value={theme.id}>{theme.label}</option>)}
             </select>
           </label>
-          <div className="swatches" role="radiogroup" aria-label={t('set.theme')}>
-            {THEMES.map((theme) => (
-              <button
-                key={theme.id}
-                type="button"
-                role="radio"
-                aria-checked={preference.theme === theme.id}
-                title={theme.label}
-                data-theme={theme.id}
-                className={`swatch ${preference.theme === theme.id ? 'on' : ''}`}
-                onClick={() => void patch({ theme: theme.id })}
-              >
-                <span className="swatch-accent" /><span className="swatch-accent-2" />
-              </button>
-            ))}
-          </div>
           <label className="check"><input type="checkbox" checked={preference.crt} onChange={(event) => void patch({ crt: event.target.checked })} />{t('set.crt')}</label>
           <label className="check"><input type="checkbox" checked={preference.notifications} onChange={(event) => void patch({ notifications: event.target.checked })} />{t('set.notifications')}</label>
         </div>
@@ -653,9 +635,9 @@ function ProfileForm() {
   )
 }
 
-function InviteForm({ projectId, compact }: { projectId: string; compact?: boolean }) {
+function InviteForm({ projectId, compact, initial = '' }: { projectId: string; compact?: boolean; initial?: string }) {
   const t = useT()
-  const [invite, setInvite] = useState('')
+  const [invite, setInvite] = useState(initial)
   const [role, setRole] = useState('EDITOR')
   const [sent, setSent] = useState<{ name: string; link: string } | null>(null)
   const [error, setError] = useState('')
@@ -747,7 +729,7 @@ function ProjectSettings() {
             ))}
           </tbody>
         </table>
-        {owner ? <InviteForm projectId={project.id} /> : null}
+        {owner ? <div className="muted invite-hint">{t('invite.hint')} <span className="accent">/invite [user]</span></div> : null}
       </div>
       {owner ? (
         <div className="box" style={{ borderColor: 'rgba(255,107,107,0.4)' }}>

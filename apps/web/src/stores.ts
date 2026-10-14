@@ -102,6 +102,8 @@ type WorkspaceState = {
   logs: { id: number; text: string; tone: 'info' | 'ok' | 'warn' | 'error' }[]
   sync: SyncStatus
   connected: boolean
+  invite: { name: string; nonce: number } | null
+  setInvite: (invite: { name: string } | null) => void
   setView: (view: WorkspaceState['view']) => void
   setProjects: (projects: WorkspaceState['projects']) => void
   setInvitations: (invitations: WorkspaceState['invitations']) => void
@@ -139,10 +141,12 @@ export const useWorkspace = create<WorkspaceState>((set) => ({
   logs: [],
   sync: 'IDLE',
   connected: false,
+  invite: null,
+  setInvite: (invite) => set({ invite: invite ? { name: invite.name, nonce: Date.now() } : null }),
   setView: (view) => set({ view }),
   setProjects: (projects) => set({ projects }),
   setInvitations: (invitations) => set({ invitations }),
-  setProject: (project) => set({ project }),
+  setProject: (project) => set((state) => ({ project, invite: project && project.id === state.project?.id ? state.invite : null })),
   setFiles: (files) => set({ files }),
   setChannels: (channels) => set({ channels }),
   setActiveChannelId: (activeChannelId) => set({ activeChannelId }),
@@ -165,7 +169,7 @@ export const useWorkspace = create<WorkspaceState>((set) => ({
   setConnected: (connected) => set({ connected }),
   reset: () => set({
     view: 'dashboard', projects: null, invitations: [], project: null, files: [], channels: [],
-    activeChannelId: null, messages: [], members: [], presence: [], tabs: [], activeFileId: null, logs: [], sync: 'IDLE', connected: false,
+    activeChannelId: null, messages: [], members: [], presence: [], tabs: [], activeFileId: null, logs: [], sync: 'IDLE', connected: false, invite: null,
   }),
 }))
 

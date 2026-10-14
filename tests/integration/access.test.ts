@@ -2,6 +2,7 @@ import { loadProjectEnv } from '@livebrary/database/load-env'
 import { beforeAll, describe, expect, it } from 'vitest'
 
 loadProjectEnv()
+process.env.REQUIRE_DISCORD_SIGNUP ??= 'false'
 
 const enabled = process.env.LIVEBRARY_INTEGRATION === '1'
 

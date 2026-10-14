@@ -21,7 +21,8 @@ export function AuthScreen() {
   const [pending, setPending] = useState(false)
   const [verified, setVerified] = useState(false)
   const [denied, setDenied] = useState('')
-  const [discordQr, setDiscordQr] = useState('')
+  const [signup, setSignup] = useState<{ token: string; code: string; expiresAt: string; qr: string } | null>(null)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -30,6 +31,27 @@ export function AuthScreen() {
     }).catch(() => navigate('/', { replace: true }))
     return () => { cancelled = true }
   }, [navigate])
+
+  useEffect(() => {
+    if (!signup) return
+    let stopped = false
+    const poll = async () => {
+      try {
+        const result = await api<{ pending?: boolean; user?: Me }>('/api/auth/register/complete', { method: 'POST', body: JSON.stringify({ token: signup.token }) })
+        if (stopped || !result.user) return
+        stopped = true
+        await loadSession()
+        goAfterLogin()
+      } catch (reason) {
+        if (stopped || !(reason instanceof ApiError) || (reason.status !== 409 && reason.status !== 410)) return
+        stopped = true
+        setSignup(null)
+        setError(reason.message)
+      }
+    }
+    const timer = window.setInterval(() => { if (!stopped) void poll() }, 3000)
+    return () => { stopped = true; window.clearInterval(timer) }
+  }, [signup])
 
   async function loadSession() {
     const me = await api<{ user: Me; preference: Preference }>('/api/auth/me')
@@ -63,12 +85,14 @@ export function AuthScreen() {
       const body = mode === 'login' || adminMode
         ? { email: form.get('email'), password: form.get('password') }
         : { email: form.get('email'), username: form.get('username'), password: form.get('password'), passwordConfirm: form.get('passwordConfirm') }
-      await api(path, { method: 'POST', body: JSON.stringify(body) })
-      await loadSession()
-      if (!adminMode && mode === 'register') {
-        setDiscordQr(await QRCode.toString(DISCORD_INVITE, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#000000', light: '#ffffff' } }))
+      const result = await api<{ pending?: { token: string; code: string; expiresAt: string } }>(path, { method: 'POST', body: JSON.stringify(body) })
+      if (result.pending) {
+        const qr = await QRCode.toString(DISCORD_INVITE, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#000000', light: '#ffffff' } })
+        setCopied(false)
+        setSignup({ ...result.pending, qr })
         return
       }
+      await loadSession()
       if (!adminMode) {
         goAfterLogin()
         return
@@ -93,23 +117,28 @@ export function AuthScreen() {
     </div>
   )
 
-  if (discordQr) {
+  if (signup) {
+    const command = `/인증 코드:${signup.code}`
     return (
       <main className="auth">
         <div className="auth-box">
           {head}
-          <div className="auth-tabs"><button type="button" className="on">JOIN DISCORD</button></div>
+          <div className="auth-tabs"><button type="button" className="on">DISCORD VERIFY</button></div>
           <div className="auth-body discord-qr">
-            <p className="muted">계정이 만들어졌습니다. Livebrary 디스코드 서버에도 들어와 주세요.</p>
-            <div className="qr-frame" dangerouslySetInnerHTML={{ __html: discordQr }} aria-label="Livebrary Discord 초대 QR" role="img" />
+            <p className="muted">Livebrary는 디스코드 서버 멤버만 가입할 수 있습니다. 아래 순서대로 진행하면 가입이 자동으로 완료됩니다.</p>
+            <div className="qr-frame" dangerouslySetInnerHTML={{ __html: signup.qr }} aria-label="Livebrary Discord 초대 QR" role="img" />
             <ol className="qr-steps">
-              <li>휴대폰 카메라로 QR을 찍습니다</li>
-              <li>Discord에서 <span className="accent">초대 수락</span>을 누릅니다</li>
-              <li>아래 CONTINUE를 눌러 Livebrary로 들어갑니다</li>
+              <li>QR을 찍거나 <a className="accent" href={DISCORD_INVITE} target="_blank" rel="noreferrer">초대 링크</a>로 서버에 들어갑니다</li>
+              <li>서버의 아무 채널에서 아래 명령을 입력합니다</li>
             </ol>
+            <div className="signup-code">
+              <code>{command}</code>
+              <button type="button" className="cmd" onClick={() => void navigator.clipboard.writeText(command).then(() => setCopied(true))}>{copied ? 'COPIED' : 'COPY'}</button>
+            </div>
+            <p className="signup-wait"><span className="dot busy" /> 디스코드 인증을 기다리는 중… <span className="muted">({new Date(signup.expiresAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}까지)</span></p>
             <div className="auth-foot">
-              <a className="btn" href={DISCORD_INVITE} target="_blank" rel="noreferrer">이 기기에서 열기</a>
-              <button className="btn primary" type="button" autoFocus onClick={goAfterLogin}>CONTINUE</button>
+              <span>이 창을 닫으면 처음부터 다시 해야 합니다</span>
+              <button className="btn" type="button" onClick={() => setSignup(null)}>CANCEL</button>
             </div>
           </div>
         </div>

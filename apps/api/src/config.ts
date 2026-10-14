@@ -38,6 +38,7 @@ export const config = {
   tlsKeyPath: process.env.TLS_KEY_PATH?.trim() ?? '',
   redisUrl: process.env.REDIS_URL?.trim() ?? '',
   riyanSyncKey: process.env.RIYAN_SYNC_KEY?.trim() ?? '',
+  requireDiscordSignup: process.env.REQUIRE_DISCORD_SIGNUP !== 'false',
 }
 
 export const GATE_MS = 12 * 60 * 60 * 1000

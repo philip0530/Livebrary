@@ -370,3 +370,21 @@ model ServiceSetting {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+model PendingRegistration {
+  id                 String    @id @default(uuid())
+  email              String
+  username           String
+  usernameNormalized String
+  passwordHash       String
+  tokenHash          String    @unique
+  codeHash           String    @unique
+  discordUserId      String?
+  discordName        String?
+  verifiedAt         DateTime?
+  expiresAt          DateTime
+  createdAt          DateTime  @default(now())
+
+  @@index([email])
+  @@index([expiresAt])
+}

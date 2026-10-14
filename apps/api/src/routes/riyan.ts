@@ -1,5 +1,6 @@
 import { Router, type Request } from 'express'
 import { prisma } from '@livebrary/database'
+import { sha256 } from '@livebrary/database/crypto'
 import { hashSecret } from '@livebrary/database/password'
 import { recordAudit } from '@livebrary/discord-logger'
 import { nextWeekStart, weekStart } from '@livebrary/shared'
@@ -73,5 +74,65 @@ export function riyanRouter(limiter: Limiter): Router {
     })
   }))
 
+  router.post('/registration-verify', wrap(async (req, res) => {
+    await authorize(req, 'riyan-verify', 300)
+    const body = req.body as { code?: unknown; discordUserId?: unknown; discordName?: unknown }
+    const code = typeof body.code === 'string' ? body.code.replace(/[\s-]/g, '').toUpperCase() : ''
+    const discordUserId = typeof body.discordUserId === 'string' && /^\d{5,25}$/.test(body.discordUserId) ? body.discordUserId : ''
+    const discordName = typeof body.discordName === 'string' ? body.discordName.slice(0, 64) : ''
+    if (!/^[A-Z2-9]{10}$/.test(code) || !discordUserId) throw new HttpError(400, 'VALIDATION', 'Invalid code')
+    const pending = await prisma.pendingRegistration.findUnique({ where: { codeHash: sha256(code) } })
+    if (!pending || pending.expiresAt <= new Date()) throw new HttpError(404, 'NOT_FOUND', 'Unknown code')
+    if (pending.verifiedAt && pending.discordUserId !== discordUserId) throw new HttpError(409, 'CONFLICT', 'Code already used')
+    if (await prisma.user.findUnique({ where: { discordUserId } })) {
+      throw new HttpError(409, 'DISCORD_TAKEN', 'This Discord account is already linked')
+    }
+    await prisma.pendingRegistration.update({
+      where: { id: pending.id },
+      data: { verifiedAt: new Date(), discordUserId, discordName },
+    })
+    res.json({ ok: true, username: pending.username })
+  }))
+
+  // Non-SUCCESS audit rows are the "suspicious activity" feed the bot posts to the security channel.
+  router.get('/security-events', wrap(async (req, res) => {
+    await authorize(req, 'riyan-poll-security', 120)
+    const afterRaw = typeof req.query.after === 'string' ? req.query.after : ''
+    const afterId = typeof req.query.afterId === 'string' ? req.query.afterId.slice(0, 64) : ''
+    const after = afterRaw ? new Date(afterRaw) : null
+    if (after && Number.isNaN(after.getTime())) throw new HttpError(400, 'VALIDATION', 'Invalid cursor')
+    const where = { result: { not: 'SUCCESS' as const } }
+    const rows = after
+      ? await prisma.auditLog.findMany({
+          where: { ...where, OR: [{ createdAt: { gt: after } }, { createdAt: after, id: { gt: afterId } }] },
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          take: 50,
+          include: { actor: { select: { username: true } } },
+        })
+      : []
+    const last = rows.at(-1) ?? (after ? null : await prisma.auditLog.findFirst({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }))
+    res.json({
+      events: rows.map((row) => {
+        const meta = (row.metadata ?? {}) as Record<string, unknown>
+        return {
+          id: row.id,
+          eventType: row.eventType,
+          result: row.result,
+          createdAt: row.createdAt.toISOString(),
+          username: row.actor?.username ?? null,
+          ip: typeof meta.ip === 'string' ? meta.ip : null,
+          email: typeof meta.email === 'string' ? maskEmail(meta.email) : null,
+          detail: [meta.stage, meta.reason, meta.path].filter((value) => typeof value === 'string').join(' · ').slice(0, 120),
+        }
+      }),
+      cursor: last ? { after: last.createdAt.toISOString(), afterId: last.id } : { after: after?.toISOString() ?? new Date(0).toISOString(), afterId },
+    })
+  }))
+
   return router
+}
+
+function maskEmail(email: string): string {
+  const [local = '', domain = ''] = email.split('@')
+  return `${local.slice(0, 2)}${'*'.repeat(Math.max(1, local.length - 2))}@${domain}`
 }
