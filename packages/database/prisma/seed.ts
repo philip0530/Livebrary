@@ -32,6 +32,24 @@ async function main(): Promise<void> {
     return
   }
   const existing = await prisma.user.findUnique({ where: { email } })
+  if (existing && process.env.ADMIN_RESET_PASSWORD === 'true') {
+    const nameOwner = await prisma.user.findUnique({ where: { usernameNormalized: username.toLowerCase() } })
+    const renamed = !nameOwner || nameOwner.id === existing.id
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          passwordHash: await hashSecret(password),
+          systemRole: 'SYSTEM_ADMIN',
+          ...(renamed ? { username, usernameNormalized: username.toLowerCase() } : {}),
+        },
+      }),
+      prisma.userSession.updateMany({ where: { userId: existing.id, revokedAt: null }, data: { revokedAt: new Date() } }),
+      prisma.adminSession.updateMany({ where: { userId: existing.id, revokedAt: null }, data: { revokedAt: new Date() } }),
+    ])
+    console.log(`Admin password reset: ${renamed ? username : existing.username}`)
+    return
+  }
   if (existing) {
     if (existing.systemRole !== 'SYSTEM_ADMIN') {
       await prisma.user.update({ where: { id: existing.id }, data: { systemRole: 'SYSTEM_ADMIN' } })
