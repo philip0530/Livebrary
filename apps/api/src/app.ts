@@ -20,6 +20,7 @@ import { memberRouter } from './routes/members.js'
 import { oauthRouter } from './routes/oauth.js'
 import { profileRouter } from './routes/profile.js'
 import { projectRouter } from './routes/projects.js'
+import { riyanRouter } from './routes/riyan.js'
 
 function apiPath(req: Request): string {
   const path = (req.originalUrl || req.url || req.path).split('?')[0] ?? ''
@@ -33,6 +34,7 @@ export function createApp(limiter: Limiter = createMemoryLimiter()) {
   app.use(helmet({ contentSecurityPolicy: false }))
   app.use(express.json({ limit: '2mb' }))
   app.use(cookieParser())
+  app.use('/api/integrations/riyan', riyanRouter(limiter))
   app.use((req, res, next) => {
     if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next()
     if (!originAllowed(req.get('origin'), req.get('host'))) {

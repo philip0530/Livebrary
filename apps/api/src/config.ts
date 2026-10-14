@@ -37,6 +37,7 @@ export const config = {
   tlsCertPath,
   tlsKeyPath: process.env.TLS_KEY_PATH?.trim() ?? '',
   redisUrl: process.env.REDIS_URL?.trim() ?? '',
+  riyanSyncKey: process.env.RIYAN_SYNC_KEY?.trim() ?? '',
 }
 
 export const GATE_MS = 12 * 60 * 60 * 1000

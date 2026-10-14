@@ -1,7 +1,7 @@
 import { randomToken, sha256 } from '@livebrary/database/crypto'
 
 export type AdminChallenge = {
-  via: 'weekly' | 'fallback'
+  via: 'weekly' | 'riyan' | 'fallback'
   exp: number
 }
 
