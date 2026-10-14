@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
+import QRCode from 'qrcode'
 import { ApiError, api } from '../lib/api'
 import { applyTheme, useSession, type Me, type Preference } from '../stores'
 
@@ -7,6 +8,8 @@ const BANNER = String.raw` _    _____   _____ ___ ___    _   _____   __
 | |  |_ _\ \ / / __| _ ) _ \  /_\ | _ \ \ / /
 | |__ | | \ V /| _|| _ \   / / _ \|   /\ V /
 |____|___| \_/ |___|___/_|_\/_/ \_\_|_\ |_| `
+
+const DISCORD_INVITE = 'https://discord.gg/ZBfCDuHug5'
 
 export function AuthScreen() {
   const navigate = useNavigate()
@@ -18,6 +21,7 @@ export function AuthScreen() {
   const [pending, setPending] = useState(false)
   const [verified, setVerified] = useState(false)
   const [denied, setDenied] = useState('')
+  const [discordQr, setDiscordQr] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -46,6 +50,11 @@ export function AuthScreen() {
     }
   }
 
+  function goAfterLogin() {
+    const next = params.get('next')
+    navigate(next && next.startsWith('/invite/') && !next.includes('//') ? next : '/app')
+  }
+
   async function submit(form: FormData) {
     setError('')
     setPending(true)
@@ -56,9 +65,12 @@ export function AuthScreen() {
         : { email: form.get('email'), username: form.get('username'), password: form.get('password'), passwordConfirm: form.get('passwordConfirm') }
       await api(path, { method: 'POST', body: JSON.stringify(body) })
       await loadSession()
+      if (!adminMode && mode === 'register') {
+        setDiscordQr(await QRCode.toString(DISCORD_INVITE, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#000000', light: '#ffffff' } }))
+        return
+      }
       if (!adminMode) {
-        const next = params.get('next')
-        navigate(next && next.startsWith('/invite/') && !next.includes('//') ? next : '/app')
+        goAfterLogin()
         return
       }
       try {
@@ -80,6 +92,30 @@ export function AuthScreen() {
       <div className="sub">{adminMode ? '라이브러리 · ADMINISTRATOR ACCESS' : '라이브러리 · REAL-TIME COLLABORATIVE CODE LIBRARY'}</div>
     </div>
   )
+
+  if (discordQr) {
+    return (
+      <main className="auth">
+        <div className="auth-box">
+          {head}
+          <div className="auth-tabs"><button type="button" className="on">JOIN DISCORD</button></div>
+          <div className="auth-body discord-qr">
+            <p className="muted">계정이 만들어졌습니다. Livebrary 디스코드 서버에도 들어와 주세요.</p>
+            <div className="qr-frame" dangerouslySetInnerHTML={{ __html: discordQr }} aria-label="Livebrary Discord 초대 QR" role="img" />
+            <ol className="qr-steps">
+              <li>휴대폰 카메라로 QR을 찍습니다</li>
+              <li>Discord에서 <span className="accent">초대 수락</span>을 누릅니다</li>
+              <li>아래 CONTINUE를 눌러 Livebrary로 들어갑니다</li>
+            </ol>
+            <div className="auth-foot">
+              <a className="btn" href={DISCORD_INVITE} target="_blank" rel="noreferrer">이 기기에서 열기</a>
+              <button className="btn primary" type="button" autoFocus onClick={goAfterLogin}>CONTINUE</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    )
+  }
 
   if (adminMode && denied) {
     return (
