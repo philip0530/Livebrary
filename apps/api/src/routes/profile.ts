@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { prisma } from '@livebrary/database'
 import { recordAudit } from '@livebrary/discord-logger'
-import { isThemeId, validateUsername } from '@livebrary/shared'
+import { isLocaleId, isThemeId, validateUsername } from '@livebrary/shared'
 import { HttpError, wrap } from '../http.js'
 
 function cleanAvatar(value: unknown): string | null {
@@ -129,11 +129,16 @@ export function profileRouter(): Router {
       minimap?: boolean
       crt?: boolean
       notifications?: boolean
+      locale?: string
       panelLayout?: object
     } = {}
     if (body.theme !== undefined) {
       if (typeof body.theme !== 'string' || !isThemeId(body.theme)) throw new HttpError(400, 'VALIDATION', '테마를 확인할 수 없습니다.')
       data.theme = body.theme
+    }
+    if (body.locale !== undefined) {
+      if (typeof body.locale !== 'string' || !isLocaleId(body.locale)) throw new HttpError(400, 'VALIDATION', '언어를 확인할 수 없습니다.')
+      data.locale = body.locale
     }
     if (body.fontSize !== undefined) {
       const fontSize = Number(body.fontSize)

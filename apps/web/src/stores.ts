@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { ThemeId } from '@livebrary/shared'
+import type { LocaleId, ThemeId } from '@livebrary/shared'
 
 export type Me = {
   id: string
@@ -22,6 +22,7 @@ export type Preference = {
   minimap: boolean
   crt: boolean
   notifications: boolean
+  locale: LocaleId | string
   panelLayout: PanelLayout | null
 }
 
@@ -196,4 +197,5 @@ export const useTerminal = create<TerminalState>((set) => ({
 export function applyTheme(preference: Preference | null): void {
   document.documentElement.dataset.theme = preference?.theme || 'classic-green'
   document.documentElement.dataset.crt = preference?.crt ? 'on' : 'off'
+  document.documentElement.lang = preference?.locale === 'en' ? 'en' : 'ko'
 }

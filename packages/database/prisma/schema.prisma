@@ -140,6 +140,7 @@ model UserPreference {
   minimap       Boolean @default(true)
   crt           Boolean @default(false)
   notifications Boolean @default(true)
+  locale        String  @default("en")
   panelLayout   Json?
   user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

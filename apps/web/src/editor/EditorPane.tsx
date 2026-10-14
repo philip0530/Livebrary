@@ -6,6 +6,7 @@ import { IndexeddbPersistence } from 'y-indexeddb'
 import { MonacoBinding } from 'y-monaco'
 import * as Y from 'yjs'
 import { documentName } from '@livebrary/shared'
+import { useT } from '../lib/i18n'
 import { focusFile } from '../lib/realtime'
 import { useSession, useWorkspace } from '../stores'
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
@@ -25,17 +26,30 @@ self.MonacoEnvironment = {
 }
 
 loader.config({ monaco })
-monaco.editor.defineTheme('livebrary', {
-  base: 'vs-dark',
-  inherit: true,
-  rules: [],
-  colors: {
-    'editor.background': '#1E1E1E',
-    'editor.foreground': '#D4D4D4',
-    'editorCursor.foreground': '#7BD88F',
-    'editorLineNumber.foreground': '#7F8C7F',
-  },
-})
+
+// Monaco only accepts #rrggbb, so every theme in index.css keeps these four variables as hex.
+function syncEditorTheme() {
+  const css = getComputedStyle(document.documentElement)
+  const read = (name: string, fallback: string) => {
+    const value = css.getPropertyValue(name).trim()
+    return /^#[0-9a-fA-F]{6}$/.test(value) ? value : fallback
+  }
+  const accent = read('--accent', '#7BD88F')
+  monaco.editor.defineTheme('livebrary', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [],
+    colors: {
+      'editor.background': read('--editor', '#1E1E1E'),
+      'editor.foreground': read('--fg', '#D4D4D4'),
+      'editorCursor.foreground': accent,
+      'editorLineNumber.foreground': read('--muted', '#7F8C7F'),
+      'editorLineNumber.activeForeground': accent,
+    },
+  })
+  monaco.editor.setTheme('livebrary')
+}
+syncEditorTheme()
 
 const COLORS = ['#7BD88F', '#6CC7E6', '#E6C07B', '#D48BD4', '#E68B8B', '#8BE0C2', '#C7D36C', '#8BB4E6']
 
@@ -51,6 +65,14 @@ function safeColor(value: unknown): string {
 
 type EditorHandle = Parameters<OnMount>[0]
 
+// Hangul and other wide glyphs take two monospace cells, so pad by display width rather than length.
+function boxed(text: string): string {
+  const width = [...text].reduce((sum, char) => sum + (/[\u1100-\u11ff\u3000-\u9fff\uac00-\ud7af\uff00-\uffef]/.test(char) ? 2 : 1), 0)
+  const inner = Math.max(width + 6, 22)
+  const left = Math.floor((inner - width) / 2)
+  return `┌${'─'.repeat(inner)}┐\n│${' '.repeat(left)}${text}${' '.repeat(inner - width - left)}│\n└${'─'.repeat(inner)}┘`
+}
+
 export function EditorPane() {
   const project = useWorkspace((state) => state.project)
   const fileId = useWorkspace((state) => state.activeFileId)
@@ -60,6 +82,9 @@ export function EditorPane() {
   const file = files.find((item) => item.id === fileId && item.type === 'FILE')
   const writable = project?.role === 'OWNER' || project?.role === 'EDITOR'
   const [editor, setEditor] = useState<EditorHandle | null>(null)
+  const t = useT()
+
+  useEffect(() => { syncEditorTheme() }, [preference?.theme])
 
   useEffect(() => {
     if (!editor || !file || !project || !me) return
@@ -173,8 +198,8 @@ export function EditorPane() {
   if (!file || !project) {
     return (
       <div className="editor-empty">
-        <pre>{'┌──────────────────────┐\n│   no file is open    │\n└──────────────────────┘'}</pre>
-        <span>pick a file on the left, or type <span className="accent">/open [path]</span></span>
+        <pre>{boxed(t('editor.noFile'))}</pre>
+        <span>{t('editor.pick')} <span className="accent">/open [path]</span></span>
       </div>
     )
   }
