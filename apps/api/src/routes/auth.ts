@@ -20,14 +20,17 @@ import {
 } from '../identity.js'
 import type { Limiter } from '../rate-limit.js'
 
+// 가입 대기(디스코드 인증 대기) 유효 시간: 30분
 const SIGNUP_MS = 30 * 60 * 1000
+// 헷갈리는 글자(0/O, 1/I)를 뺀 알파벳. 리얀 봇 /인증 명령의 코드 검사 규칙과 같아야 합니다.
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 
-/** Same 10-character alphabet the Riyan bot's /인증 command accepts. */
+/** 디스코드 /인증 에 입력할 10자리 가입 코드 */
 export function signupCode(): string {
   return Array.from({ length: 10 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join('')
 }
 
+// 이메일·사용자 이름 중복 검사. 가입 요청 시와 실제 계정 생성 직전에 두 번 확인합니다.
 async function assertAvailable(email: string, username: string) {
   if (await prisma.user.findUnique({ where: { email } })) throw new HttpError(409, 'CONFLICT', '이미 사용 중인 이메일입니다.')
   if (await prisma.user.findUnique({ where: { usernameNormalized: username.toLowerCase() } })) {
@@ -35,6 +38,7 @@ async function assertAvailable(email: string, username: string) {
   }
 }
 
+// 계정 생성과 가입 감사 로그를 한 트랜잭션으로 묶습니다. 감사 로그가 디스코드 가입 알림의 원본입니다.
 async function createUser(input: { email: string; username: string; passwordHash: string; discordUserId: string | null; discordName?: string | null }) {
   return prisma.$transaction(async (tx) => {
     const created = await tx.user.create({
@@ -92,6 +96,7 @@ export function authRouter(limiter: Limiter): Router {
       throw new HttpError(400, 'VALIDATION', emailError ?? usernameError ?? passwordError ?? '입력값을 확인하세요.')
     }
     if (password !== (body.passwordConfirm ?? '')) throw new HttpError(400, 'VALIDATION', '비밀번호가 일치하지 않습니다.')
+    // IP당 시간당 5회. 초과 시 보안 로그(ACCESS_DENIED)로 남겨 봇이 보안 채널에 올립니다.
     const allowed = await limiter.hit(`register:${clientIp(req)}`, 5, 60 * 60 * 1000)
     if (!allowed) {
       await recordAudit({ eventType: 'ACCESS_DENIED', result: 'DENIED', metadata: { stage: 'register-rate-limit', ip: clientIp(req), email } })
@@ -99,6 +104,7 @@ export function authRouter(limiter: Limiter): Router {
     }
     await assertAvailable(email, username)
     const passwordHash = await hashSecret(password)
+    // REQUIRE_DISCORD_SIGNUP=false 일 때만 예전처럼 바로 가입 (테스트용)
     if (!config.requireDiscordSignup) {
       const user = await createUser({ email, username, passwordHash, discordUserId: null })
       await issueSession(res, user.id, clientIp(req), userAgent(req))
@@ -106,6 +112,8 @@ export function authRouter(limiter: Limiter): Router {
       res.status(201).json({ user: publicUser(user) })
       return
     }
+    // 계정은 아직 만들지 않고 가입 대기 행만 저장합니다. 같은 이메일의 이전 대기와 만료된 대기는 정리합니다.
+    // token: 브라우저가 완료 여부를 확인할 때 쓰는 비밀값 / code: 디스코드에서 입력하는 값 (DB에는 둘 다 해시만 저장)
     await prisma.pendingRegistration.deleteMany({ where: { OR: [{ email }, { expiresAt: { lt: new Date() } }] } })
     const token = randomToken()
     const code = signupCode()
@@ -116,7 +124,8 @@ export function authRouter(limiter: Limiter): Router {
     res.status(202).json({ pending: { token, code, expiresAt: expiresAt.toISOString() } })
   }))
 
-  // The Riyan bot marks the pending row verified once the code is entered inside the Livebrary Discord server.
+  // 가입 화면이 3초마다 호출합니다. 디스코드 서버에서 /인증 을 마쳐 리얀 봇이 승인한 경우에만 계정을 만듭니다.
+  // 202: 아직 인증 전 / 201: 가입 완료 + 로그인 / 410: 만료 / 409: 중복
   router.post('/register/complete', wrap(async (req, res) => {
     const token = String((req.body as { token?: unknown }).token ?? '')
     if (!token || token.length > 128) throw new HttpError(400, 'VALIDATION', '가입 정보가 올바르지 않습니다.')
@@ -128,6 +137,7 @@ export function authRouter(limiter: Limiter): Router {
       res.status(202).json({ pending: true })
       return
     }
+    // 대기 행을 먼저 지워 같은 token으로 두 번 가입되지 않게 하고, 그 사이 이름이 선점됐는지 다시 확인합니다.
     await prisma.pendingRegistration.delete({ where: { id: pending.id } })
     await assertAvailable(pending.email, pending.username)
     if (await prisma.user.findUnique({ where: { discordUserId: pending.discordUserId } })) {

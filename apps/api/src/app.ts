@@ -51,7 +51,8 @@ export function createApp(limiter: Limiter = createMemoryLimiter()) {
     next()
   })
 
-  // One audit row per IP and stage per 10 minutes, so a scripted flood cannot fill the audit log.
+  // 출처(origin)·CSRF 위반 요청을 보안 로그로 남깁니다.
+  // IP·단계별 10분에 1건만 기록해, 자동화된 대량 요청이 감사 로그를 채우지 못하게 합니다.
   async function suspicious(req: Request, stage: string) {
     const ip = clientIp(req)
     if (!(await limiter.hit(`suspicious:${stage}:${ip}`, 1, 10 * 60 * 1000))) return

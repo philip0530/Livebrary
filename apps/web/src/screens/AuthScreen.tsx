@@ -21,6 +21,7 @@ export function AuthScreen() {
   const [pending, setPending] = useState(false)
   const [verified, setVerified] = useState(false)
   const [denied, setDenied] = useState('')
+  // 디스코드 인증 대기 중인 가입 정보. 값이 있으면 QR·코드 화면을 보여 줍니다.
   const [signup, setSignup] = useState<{ token: string; code: string; expiresAt: string; qr: string } | null>(null)
   const [copied, setCopied] = useState(false)
 
@@ -32,6 +33,8 @@ export function AuthScreen() {
     return () => { cancelled = true }
   }, [navigate])
 
+  // 3초마다 가입 완료 여부를 확인합니다. 디스코드에서 /인증 이 끝나면 서버가 계정을 만들고 로그인시킵니다.
+  // 만료(410)·중복(409)일 때만 멈추고, 네트워크 오류나 요청 제한은 다음 주기에 다시 시도합니다.
   useEffect(() => {
     if (!signup) return
     let stopped = false
@@ -86,6 +89,7 @@ export function AuthScreen() {
         ? { email: form.get('email'), password: form.get('password') }
         : { email: form.get('email'), username: form.get('username'), password: form.get('password'), passwordConfirm: form.get('passwordConfirm') }
       const result = await api<{ pending?: { token: string; code: string; expiresAt: string } }>(path, { method: 'POST', body: JSON.stringify(body) })
+      // 202 + pending: 계정은 아직 없음 → 디스코드 인증 화면으로
       if (result.pending) {
         const qr = await QRCode.toString(DISCORD_INVITE, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#000000', light: '#ffffff' } })
         setCopied(false)

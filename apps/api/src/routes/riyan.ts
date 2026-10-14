@@ -9,10 +9,14 @@ import { config } from '../config.js'
 import { HttpError, clientIp, safeEqual, wrap } from '../http.js'
 import type { Limiter } from '../rate-limit.js'
 
-/** Server-to-server routes used by the Riyan Discord bot. */
+/**
+ * 리얀 디스코드 봇 전용 서버 간 API.
+ * 봇은 사용자 PC에서 돌기 때문에 Render가 봇에 접속할 수 없어, 항상 봇이 이쪽으로 요청(폴링)합니다.
+ */
 export function riyanRouter(limiter: Limiter): Router {
   const router = Router()
 
+  // 요청 횟수 제한 + 동기화 키(x-livebrary-sync-key) 확인. 키가 틀리면 보안 로그에 남습니다.
   async function authorize(req: Request, bucket: string, max: number) {
     const ip = clientIp(req)
     if (!(await limiter.hit(`${bucket}:${ip}`, max, 15 * 60 * 1000))) throw new HttpError(429, 'RATE_LIMIT', 'Too many requests')
@@ -50,7 +54,8 @@ export function riyanRouter(limiter: Limiter): Router {
     res.json({ ok: true, weekStart: value.weekStart, expiresAt: value.expiresAt })
   }))
 
-  // Without a cursor this returns only the newest account as the starting point, so the bot never replays old signups.
+  // 새 가입자 목록 (디스코드 가입 알림용). after/afterId 커서 이후의 가입자만 돌려줍니다.
+  // 커서 없이 처음 호출하면 가장 최근 가입자를 시작점으로만 알려 주어, 예전 가입자를 다시 알리지 않습니다.
   router.get('/registrations', wrap(async (req, res) => {
     await authorize(req, 'riyan-poll', 120)
     const afterRaw = typeof req.query.after === 'string' ? req.query.after : ''
@@ -74,6 +79,9 @@ export function riyanRouter(limiter: Limiter): Router {
     })
   }))
 
+  // 디스코드 서버에서 /인증 코드를 입력하면 봇이 호출합니다. 가입 대기 행을 "인증됨"으로 표시만 하고,
+  // 실제 계정 생성은 브라우저의 /register/complete 가 합니다.
+  // 404: 이 사이트의 가입 코드가 아님 (봇은 다른 사이트나 기존 계정 연결 코드로 넘어감)
   router.post('/registration-verify', wrap(async (req, res) => {
     await authorize(req, 'riyan-verify', 300)
     const body = req.body as { code?: unknown; discordUserId?: unknown; discordName?: unknown }
@@ -83,6 +91,7 @@ export function riyanRouter(limiter: Limiter): Router {
     if (!/^[A-Z2-9]{10}$/.test(code) || !discordUserId) throw new HttpError(400, 'VALIDATION', 'Invalid code')
     const pending = await prisma.pendingRegistration.findUnique({ where: { codeHash: sha256(code) } })
     if (!pending || pending.expiresAt <= new Date()) throw new HttpError(404, 'NOT_FOUND', 'Unknown code')
+    // 다른 디스코드 사용자가 이미 쓴 코드 / 이미 Livebrary 계정이 있는 디스코드 계정은 거부 (1 디스코드 = 1 계정)
     if (pending.verifiedAt && pending.discordUserId !== discordUserId) throw new HttpError(409, 'CONFLICT', 'Code already used')
     if (await prisma.user.findUnique({ where: { discordUserId } })) {
       throw new HttpError(409, 'DISCORD_TAKEN', 'This Discord account is already linked')
@@ -94,7 +103,8 @@ export function riyanRouter(limiter: Limiter): Router {
     res.json({ ok: true, username: pending.username })
   }))
 
-  // Non-SUCCESS audit rows are the "suspicious activity" feed the bot posts to the security channel.
+  // 이상 행동 목록 (디스코드 보안 채널용). 감사 로그 중 결과가 SUCCESS가 아닌 것
+  // (로그인 실패, 권한 없는 접근, CSRF/출처 위반, 잘못된 봇 키 등)을 커서 이후로 최대 50건 돌려줍니다.
   router.get('/security-events', wrap(async (req, res) => {
     await authorize(req, 'riyan-poll-security', 120)
     const afterRaw = typeof req.query.after === 'string' ? req.query.after : ''
@@ -132,6 +142,7 @@ export function riyanRouter(limiter: Limiter): Router {
   return router
 }
 
+// 디스코드에 올라가는 값이라 이메일은 앞 2글자만 보이게 가립니다. (예: ab***@gmail.com)
 function maskEmail(email: string): string {
   const [local = '', domain = ''] = email.split('@')
   return `${local.slice(0, 2)}${'*'.repeat(Math.max(1, local.length - 2))}@${domain}`

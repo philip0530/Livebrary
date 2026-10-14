@@ -123,6 +123,8 @@ export async function runCommand(line: string): Promise<void> {
     print('joined', 'ok')
     return
   }
+  // /invite [사용자] : 오른쪽 멤버 패널에 초대 창을 엽니다 (프로젝트 소유자만).
+  // 오른쪽 패널이 숨겨져 있으면 먼저 펼칩니다.
   if (command === 'invite') {
     if (!workspace.project) { print('open a project first', 'warn'); return }
     if (workspace.project.role !== 'OWNER') { print('only the project owner can invite', 'warn'); return }

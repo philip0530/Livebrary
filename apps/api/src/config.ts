@@ -38,6 +38,7 @@ export const config = {
   tlsKeyPath: process.env.TLS_KEY_PATH?.trim() ?? '',
   redisUrl: process.env.REDIS_URL?.trim() ?? '',
   riyanSyncKey: process.env.RIYAN_SYNC_KEY?.trim() ?? '',
+  // 기본값 true: 디스코드 서버에서 /인증 을 해야만 가입됩니다. 'false'면 바로 가입 (통합 테스트용)
   requireDiscordSignup: process.env.REQUIRE_DISCORD_SIGNUP !== 'false',
 }
 

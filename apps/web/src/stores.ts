@@ -102,6 +102,7 @@ type WorkspaceState = {
   logs: { id: number; text: string; tone: 'info' | 'ok' | 'warn' | 'error' }[]
   sync: SyncStatus
   connected: boolean
+  // /invite 로 연 초대 창 상태. nonce는 같은 이름으로 다시 열어도 입력창을 새로 그리기 위한 값입니다.
   invite: { name: string; nonce: number } | null
   setInvite: (invite: { name: string } | null) => void
   setView: (view: WorkspaceState['view']) => void
@@ -146,6 +147,7 @@ export const useWorkspace = create<WorkspaceState>((set) => ({
   setView: (view) => set({ view }),
   setProjects: (projects) => set({ projects }),
   setInvitations: (invitations) => set({ invitations }),
+  // 다른 프로젝트로 이동하면 열려 있던 초대 창을 닫습니다.
   setProject: (project) => set((state) => ({ project, invite: project && project.id === state.project?.id ? state.invite : null })),
   setFiles: (files) => set({ files }),
   setChannels: (channels) => set({ channels }),

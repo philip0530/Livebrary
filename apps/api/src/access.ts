@@ -3,6 +3,7 @@ import { recordAudit } from '@livebrary/discord-logger'
 import { canManage, canRestore, canWrite, effectiveRole, isUuid } from '@livebrary/shared'
 import { HttpError } from './http.js'
 
+// 권한 없는 프로젝트 접근을 보안 로그(ACCESS_DENIED)로 남깁니다. 리얀 봇이 디스코드 보안 채널에 올립니다.
 async function denied(userId: string, projectId: string, stage: string, reason: string) {
   await recordAudit({ eventType: 'ACCESS_DENIED', actorId: userId, projectId, resourceType: 'project', resourceId: projectId, result: 'DENIED', metadata: { stage, reason } })
 }
@@ -16,6 +17,7 @@ export async function projectAccess(userId: string, projectId: string) {
   })
   const role = effectiveRole(member?.role ?? null, project.visibility)
   if (!role) {
+    // 비공개 프로젝트는 존재 여부도 숨기기 위해 403 대신 404로 응답합니다.
     await denied(userId, projectId, 'project', 'private project, not a member')
     throw new HttpError(404, 'NOT_FOUND', '프로젝트를 찾을 수 없습니다.')
   }

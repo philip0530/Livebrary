@@ -315,6 +315,7 @@ export function Shell() {
           ))}
         </div>
         <div className="pane-title">{t('pane.members')}<span className="end muted">{workspace.members.length}</span></div>
+        {/* 초대 창은 버튼 없이 터미널의 /invite 명령으로만 열립니다. */}
         {workspace.invite && project?.role === 'OWNER' ? (
           <div className="pane-block member-add">
             <div className="member-add-head"><span className="accent">/invite</span><button className="cmd" aria-label={t('invite.close')} onClick={() => workspace.setInvite(null)}>×</button></div>

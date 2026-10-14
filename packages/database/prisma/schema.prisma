@@ -371,17 +371,22 @@ model ServiceSetting {
   updatedAt DateTime @updatedAt
 }
 
+/// 디스코드 인증을 기다리는 가입 신청. 인증 후 /register/complete 에서 User로 옮겨지고 삭제됩니다.
 model PendingRegistration {
   id                 String    @id @default(uuid())
   email              String
   username           String
   usernameNormalized String
   passwordHash       String
+  /// 브라우저가 가입 완료를 확인할 때 쓰는 token의 해시
   tokenHash          String    @unique
+  /// 디스코드 /인증 에 입력하는 10자리 코드의 해시
   codeHash           String    @unique
+  /// 리얀 봇이 인증하면 채워집니다.
   discordUserId      String?
   discordName        String?
   verifiedAt         DateTime?
+  /// 신청 후 30분
   expiresAt          DateTime
   createdAt          DateTime  @default(now())
 
