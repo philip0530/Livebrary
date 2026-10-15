@@ -15,6 +15,7 @@ async function main() {
     'DISCORD_NOTICE_CHANNEL_ID', 'DISCORD_DEVELOPER_CODE_CHANNEL_ID',
     'INTERNAL_API_KEY', 'CODE_HASH_PEPPER', 'ADMIN_CODE_ENCRYPTION_KEY', 'DATABASE_URL'
   ]) requireEnv(name);
+  console.log('[리얀] 시작 중...');
   if (!process.env.LIVEBRARY_ADMIN_USER_IDS?.trim()) {
     throw new Error('LIVEBRARY_ADMIN_USER_IDS에 실제 서비스 관리자 ID를 등록하세요.');
   }
@@ -48,6 +49,12 @@ async function main() {
     }, 5_000);
     startInternalApi();
   });
+  discordClient.on('error', e => console.error('[리얀] 디스코드 오류:', e.message));
+  discordClient.on('warn', m => console.warn('[리얀] 디스코드 경고:', m));
+  discordClient.rest.on('rateLimited', info => console.warn(`[리얀] 디스코드 요청 제한: ${info.route} ${info.timeToReset}ms`));
+  console.log('[리얀] DB 준비 완료, 디스코드 로그인 중...');
+  const loginWatch = setTimeout(() => console.warn('[리얀] 60초 동안 로그인 응답이 없습니다. 토큰 또는 Discord 연결(IP 차단)을 확인하세요.'), 60_000);
+  discordClient.once('ready', () => clearTimeout(loginWatch));
   await discordClient.login(requireEnv('DISCORD_BOT_TOKEN'));
 }
 main().catch(err => {

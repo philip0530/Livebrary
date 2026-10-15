@@ -50,6 +50,7 @@ export function startRiyanBot(): () => void {
   const launch = () => {
     const startedAt = Date.now()
     child = spawn(process.execPath, ['src/index.js'], { cwd: BOT_DIR, env: botEnv(), stdio: 'inherit' })
+    console.log(`Riyan bot launched (pid ${child.pid})`)
     child.on('exit', (code) => {
       child = null
       if (stopped) return
