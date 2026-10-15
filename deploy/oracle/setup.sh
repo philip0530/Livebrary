@@ -17,12 +17,6 @@ if [[ ! -f "$ROOT/package.json" ]]; then
   exit 1
 fi
 
-# The bot folder holds its .env, so move it out before the site user takes ownership of $ROOT.
-if [[ -d "$ROOT/riyan-bot" ]]; then
-  rm -rf /root/riyan-bot-src
-  mv "$ROOT/riyan-bot" /root/riyan-bot-src
-fi
-
 if [[ ! -f "$ENV_FILE" ]]; then
   if [[ -z "${DOMAIN:-}" ]]; then
     read -r -p "Public hostname (example: livebrary.duckdns.org): " DOMAIN
@@ -81,9 +75,6 @@ EOF
 else
   echo "Keeping existing $ENV_FILE"
 fi
-if ! grep -q '^RIYAN_SYNC_KEY=.' "$ENV_FILE"; then
-  echo "RIYAN_SYNC_KEY=$(openssl rand -hex 32)" >> "$ENV_FILE"
-fi
 
 set -a
 # shellcheck disable=SC1090
@@ -131,25 +122,6 @@ if [[ "$(awk '/MemTotal/ {print $2}' /proc/meminfo)" -lt 3000000 ]] && ! swapon 
   mkswap /swapfile
   swapon /swapfile
   grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
-fi
-
-# Copy users and projects from the Render database once, while this database is still empty.
-TABLES="$(sudo -u postgres psql -d livebrary -tAc "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'")"
-if [[ "$TABLES" == "0" ]]; then
-  if [[ -z "${RENDER_DATABASE_URL+x}" ]]; then
-    read -r -p "Render External Database URL to copy existing data (empty = start fresh): " RENDER_DATABASE_URL
-  fi
-  if [[ -n "$RENDER_DATABASE_URL" ]]; then
-    DUMP="$(mktemp /tmp/livebrary-render-XXXXXX.sql)"
-    chmod 644 "$DUMP"
-    if pg_dump --no-owner --no-acl "$RENDER_DATABASE_URL" > "$DUMP"; then
-      sudo -u postgres psql -q -d livebrary -c 'SET ROLE livebrary' -f "$DUMP" || echo "Some lines of the Render data could not be imported."
-      echo "Imported the Render database."
-    else
-      echo "Could not read the Render database. Continuing with an empty database."
-    fi
-    rm -f "$DUMP"
-  fi
 fi
 
 chown -R livebrary:livebrary "$ROOT"
@@ -202,10 +174,6 @@ EOF
   chmod 700 /usr/local/bin/livebrary-duckdns
   /usr/local/bin/livebrary-duckdns || true
   echo "*/5 * * * * root /usr/local/bin/livebrary-duckdns >/var/log/livebrary-duckdns.log 2>&1" > /etc/cron.d/livebrary-duckdns
-fi
-
-if [[ -f /root/riyan-bot-src/package.json || -f /opt/riyan-bot/package.json ]]; then
-  bash "$ROOT/deploy/oracle/setup-bot.sh"
 fi
 
 echo
