@@ -17,6 +17,7 @@
     "build": "npm run build -w @livebrary/web",
     "start": "tsx scripts/serve.ts",
     "start:server": "tsx apps/api/src/index.ts",
+    "bot": "npm --prefix ../riyan-bot/riyan-bot start",
     "setup:local": "tsx scripts/setup-local.ts",
     "admin:code": "tsx scripts/print-admin-code.ts",
     "admin:grant": "tsx scripts/grant-admin.ts",
