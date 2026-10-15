@@ -17,6 +17,7 @@ import { connectSocket } from './hub.js'
 import { saveDocument } from './persist.js'
 import { createLimiter } from './rate-limit.js'
 import { proxyUpgrade } from './ws-proxy.js'
+import { startRiyanBot } from './riyan-bot.js'
 
 function headerValue(value: string | string[] | undefined): string | null {
   if (Array.isArray(value)) return value[0] ?? null
@@ -120,8 +121,10 @@ server.listen(config.apiPort, config.listenHost, () => {
   if (config.serveWeb) console.log('Web app, API, and collaboration are on this server.')
   else console.log(`Livebrary collaboration ws://127.0.0.1:${config.collabPort}`)
 })
+const stopRiyanBot = startRiyanBot()
 
 async function shutdown(): Promise<void> {
+  stopRiyanBot()
   stopQueue()
   stopEdits()
   stopRotation()

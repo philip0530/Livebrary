@@ -42,6 +42,29 @@ services:
         sync: false
       - key: RIYAN_SYNC_KEY
         sync: false
+      # Riyan Discord bot runs inside this service (apps/riyan-bot). Keep it awake with an uptime ping on /api/health.
+      - key: RIYAN_BOT_ENABLED
+        value: "true"
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+      - key: DISCORD_CLIENT_ID
+        sync: false
+      - key: DISCORD_GUILD_ID
+        sync: false
+      - key: DISCORD_NOTICE_CHANNEL_ID
+        sync: false
+      - key: DISCORD_DEVELOPER_CODE_CHANNEL_ID
+        sync: false
+      - key: DISCORD_ACTIVITY_CHANNEL_ID
+        sync: false
+      - key: DISCORD_SECURITY_CHANNEL_ID
+        sync: false
+      - key: DISCORD_VERIFIED_ROLE_ID
+        sync: false
+      - key: DISCORD_OPERATOR_IDS
+        sync: false
+      - key: LIVEBRARY_ADMIN_USER_IDS
+        sync: false
 
 databases:
   - name: livebrary
