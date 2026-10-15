@@ -52,8 +52,6 @@ async function main() {
   discordClient.on('error', e => console.error('[리얀] 디스코드 오류:', e.message));
   discordClient.on('warn', m => console.warn('[리얀] 디스코드 경고:', m));
   discordClient.rest.on('rateLimited', info => console.warn(`[리얀] 디스코드 요청 제한: ${info.route} ${info.timeToReset}ms`));
-  let debugLines = 0;
-  discordClient.on('debug', m => { if (debugLines++ < 40) console.log('[리얀] debug:', m.replace(/token[^\s]*/gi, 'token')); });
   console.log('[리얀] DB 준비 완료, 디스코드 로그인 중...');
   fetch('https://discord.com/api/v10/gateway', { signal: AbortSignal.timeout(15_000) })
     .then(async r => console.log(`[리얀] Discord 연결 확인: HTTP ${r.status} ${r.headers.get('content-type') || ''} ${(await r.text()).slice(0, 120).replace(/\s+/g, ' ')}`))

@@ -42,9 +42,10 @@ services:
         sync: false
       - key: RIYAN_SYNC_KEY
         sync: false
-      # Riyan Discord bot runs inside this service (apps/riyan-bot). Keep it awake with an uptime ping on /api/health.
+      # Riyan Discord bot can run inside this service (apps/riyan-bot), but Discord often rate-limits
+      # Render's shared IPs (HTTP 429 on login), so it stays off and the bot runs on the PC instead.
       - key: RIYAN_BOT_ENABLED
-        value: "true"
+        value: "false"
       - key: DISCORD_BOT_TOKEN
         sync: false
       - key: DISCORD_CLIENT_ID

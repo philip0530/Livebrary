@@ -30,6 +30,8 @@ GitHub에 이 저장소를 올린 뒤 [Render](https://render.com)에서 New, Bl
 
 ### 리얀 봇도 Render에서 24시간 돌리기
 
+> 현재 꺼져 있습니다. Discord가 Render 무료 서버의 공유 IP를 자주 차단해(로그인 시 HTTP 429) 봇이 로그인하지 못하므로, 봇은 PC에서 돌립니다.
+
 `RIYAN_BOT_ENABLED=true`이면 사이트 서버가 `apps/riyan-bot`의 디스코드 봇을 같이 켭니다. 봇이 꺼지면 자동으로 다시 켭니다. 봇은 사이트 DB를 같이 쓰고(`riyan_` 표), 연동 주소·연동 키·암호화 키는 자동으로 맞춰집니다.
 
 1. Render > livebrary 서비스 > Environment > **Add from .env**에 아래 값을 붙여 넣고 저장합니다.
