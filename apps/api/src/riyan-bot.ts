@@ -61,9 +61,19 @@ export function startRiyanBot(): () => void {
   }
   launch()
 
+  // Render 무료 서버는 15분 동안 외부 접속이 없으면 잠들어 봇도 같이 꺼집니다.
+  // 공개 주소로 10분마다 접속해 깨어 있게 합니다 (외부 핑 서비스 불필요).
+  const publicUrl = process.env.RENDER_EXTERNAL_URL?.trim()
+  const keepAwake = publicUrl
+    ? setInterval(() => {
+        fetch(`${publicUrl}/api/health`, { signal: AbortSignal.timeout(30_000) }).catch(() => undefined)
+      }, 10 * 60 * 1000)
+    : undefined
+
   return () => {
     stopped = true
     clearTimeout(timer)
+    clearInterval(keepAwake)
     child?.kill('SIGTERM')
   }
 }

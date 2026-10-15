@@ -34,7 +34,7 @@ GitHub에 이 저장소를 올린 뒤 [Render](https://render.com)에서 New, Bl
 
 1. Render > livebrary 서비스 > Environment > **Add from .env**에 아래 값을 붙여 넣고 저장합니다.
    `RIYAN_BOT_ENABLED=true`, `DISCORD_BOT_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_GUILD_ID`, `DISCORD_NOTICE_CHANNEL_ID`, `DISCORD_DEVELOPER_CODE_CHANNEL_ID`, `DISCORD_ACTIVITY_CHANNEL_ID`, `DISCORD_SECURITY_CHANNEL_ID`, `DISCORD_VERIFIED_ROLE_ID`(선택), `DISCORD_OPERATOR_IDS`, `LIVEBRARY_ADMIN_USER_IDS`
-2. [UptimeRobot](https://uptimerobot.com)에서 HTTP(s) 모니터를 만들고 주소 `https://livebrary.onrender.com/api/health`, 간격 5분으로 둡니다. 5분마다 접속이 있으니 서비스가 잠들지 않습니다. 무료 서비스 시간(월 750시간)은 서비스 1개를 24시간 돌리기에 충분합니다.
+2. 봇이 켜져 있으면 서버가 10분마다 자기 공개 주소(`/api/health`)에 접속해 잠들지 않습니다. 따로 할 일은 없습니다. 무료 서비스 시간(월 750시간)은 서비스 1개를 24시간 돌리기에 충분합니다.
 3. PC에서 돌리던 봇은 끕니다. 같은 토큰으로 두 곳에서 켜면 명령에 두 번 응답합니다.
 
 로컬 `npm start`에서는 이 값을 켜지 않습니다.
