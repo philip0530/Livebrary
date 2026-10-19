@@ -196,14 +196,10 @@
 
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; background: #000; color: var(--fg); }
-:root {
-  --app-font-size: 14px;
-  --prompt-height: 44px;
-}
 body {
-  font-family: "D2Coding", "Cascadia Code", "Cascadia Mono", Consolas, "JetBrains Mono", "Malgun Gothic", "Apple SD Gothic Neo", ui-monospace, monospace;
-  font-size: var(--app-font-size);
-  line-height: 1.55;
+  font-family: "Cascadia Code", "Cascadia Mono", Consolas, "JetBrains Mono", "D2Coding", "Malgun Gothic", ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 button, input, textarea, select { font: inherit; color: inherit; }
@@ -293,10 +289,10 @@ button:disabled { cursor: default; opacity: 0.5; }
 /* ---------- shell ---------- */
 .shell {
   height: 100vh; display: grid; background: var(--bg); color: var(--fg);
-  grid-template-rows: 30px minmax(0, 1fr) var(--bottom, 200px) var(--prompt-height, 44px);
+  grid-template-rows: 30px minmax(0, 1fr) var(--bottom, 140px) 32px;
   grid-template-columns: var(--left) 1px minmax(0, 1fr) 1px var(--right);
 }
-.shell.no-bottom { grid-template-rows: 30px minmax(0, 1fr) 0 var(--prompt-height, 44px); }
+.shell.no-bottom { grid-template-rows: 30px minmax(0, 1fr) 0 32px; }
 .shell.crt::before {
   content: ""; pointer-events: none; position: fixed; inset: 0; z-index: 40;
   background: repeating-linear-gradient(to bottom, rgba(0,0,0,0.18), rgba(0,0,0,0.18) 1px, transparent 1px, transparent 3px);
@@ -398,13 +394,9 @@ button:disabled { cursor: default; opacity: 0.5; }
 [data-theme="monochrome"] .chat-line .nick, [data-theme="monochrome"] .chat-line.action .body,
 [data-theme="cmd-classic"] .chat-line .nick, [data-theme="amber"] .chat-line .nick { color: var(--accent); }
 .codeblock { background: var(--bg-3); border: 1px solid var(--line); border-left: 2px solid var(--accent); padding: 6px 8px; margin: 4px 0; overflow: auto; white-space: pre; }
-.chat-input { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 10px; border-top: 1px solid var(--line-soft); flex: none; }
-.chat-input .chan { color: var(--accent); white-space: nowrap; }
-.chat-input input {
-  flex: 1; background: var(--bg-2); border: 1px solid var(--line-soft); outline: none;
-  padding: 6px 8px; min-height: 28px;
-}
-.chat-input input:focus { border-color: var(--accent); }
+.chat-input { display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 10px; border-top: 1px solid var(--line-soft); flex: none; }
+.chat-input .chan { color: var(--accent); }
+.chat-input input { flex: 1; background: transparent; border: 0; outline: none; }
 
 .who { padding: 2px 0; }
 .who .item { cursor: default; }
@@ -427,17 +419,13 @@ button:disabled { cursor: default; opacity: 0.5; }
 .sync b { font-weight: 400; color: var(--fg); }
 
 .prompt {
-  grid-column: 1 / -1; display: flex; align-items: center; min-height: var(--prompt-height, 44px);
-  padding: 8px 12px; background: var(--bg-3); border-top: 1px solid var(--line);
+  grid-column: 1 / -1; display: flex; align-items: center; padding: 0 10px;
+  background: var(--bg-3); border-top: 1px solid var(--line);
 }
-.prompt form { display: flex; gap: 10px; width: 100%; align-items: center; min-height: 28px; }
-.prompt .ps1 { color: var(--accent); text-shadow: var(--glow); white-space: nowrap; font-size: 1.05em; }
-.prompt input {
-  flex: 1; border: 0; background: var(--bg-2); padding: 6px 10px; outline: none;
-  caret-color: var(--accent); border: 1px solid var(--line-soft); min-height: 28px; line-height: 1.4;
-}
-.prompt input:focus { border-color: var(--accent); }
-.prompt .mode { color: var(--warn); font-size: 0.85em; white-space: nowrap; }
+.prompt form { display: flex; gap: 8px; width: 100%; align-items: center; }
+.prompt .ps1 { color: var(--accent); text-shadow: var(--glow); white-space: nowrap; }
+.prompt input { flex: 1; border: 0; background: transparent; padding: 0; outline: none; caret-color: var(--accent); }
+.prompt .mode { color: var(--warn); font-size: 11px; white-space: nowrap; }
 
 /* ---------- views ---------- */
 .view-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 18px 0 4px; border-bottom: 1px solid var(--line-soft); }

@@ -212,8 +212,7 @@ export function EditorPane() {
         path={file.id}
         onMount={(next) => setEditor(next)}
         options={{
-          // Hangul needs an explicit CJK fallback; generic monospace alone often tofu/garble on Windows.
-          fontFamily: '"D2Coding", "Cascadia Code", "JetBrains Mono", Consolas, "Malgun Gothic", "Apple SD Gothic Neo", monospace',
+          fontFamily: '"JetBrains Mono", "Cascadia Code", Consolas, monospace',
           fontSize: preference?.fontSize ?? 14,
           lineNumbers: preference?.lineNumbers === false ? 'off' : 'on',
           wordWrap: preference?.wordWrap ? 'on' : 'off',

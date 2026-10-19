@@ -204,7 +204,4 @@ export function applyTheme(preference: Preference | null): void {
   document.documentElement.dataset.theme = preference?.theme || 'classic-green'
   document.documentElement.dataset.crt = preference?.crt ? 'on' : 'off'
   document.documentElement.lang = preference?.locale === 'en' ? 'en' : 'ko'
-  const size = preference?.fontSize ?? 14
-  document.documentElement.style.setProperty('--app-font-size', `${size}px`)
-  document.documentElement.style.setProperty('--prompt-height', `${Math.max(40, size + 26)}px`)
 }

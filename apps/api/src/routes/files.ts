@@ -152,11 +152,9 @@ export function fileRouter(): Router {
     })
     if (!file) throw new HttpError(404, 'NOT_FOUND', '파일을 찾을 수 없습니다.')
     const text = file.document ? decodeTextState(file.document.yjsState) : ''
-    // UTF-8 BOM so Windows Notepad / older editors do not misread Hangul as CP949.
-    const body = text.startsWith('\uFEFF') ? text : `\uFEFF${text}`
     res.setHeader('Content-Type', 'text/plain; charset=utf-8')
     res.setHeader('Content-Disposition', contentDisposition(file.name))
-    res.send(body)
+    res.send(text)
   }))
 
   router.get('/:fileId/snapshots', wrap(async (req, res) => {
