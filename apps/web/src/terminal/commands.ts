@@ -84,6 +84,8 @@ export async function runCommand(line: string): Promise<void> {
     print(' /users      멤버와 접속자')
     print(' /invite [U] 멤버 초대 창 열기 (소유자)')
     print(' /who        채널 접속자')
+    print(' channels: #general #development #code-review #announcements')
+    print('   (프로젝트 채팅방 — Discord 로그 채널과 다름)')
     print(' /whoami     계정')
     print(' /nick NAME  이름 변경')
     print(' /msg U TEXT 개인 메시지')

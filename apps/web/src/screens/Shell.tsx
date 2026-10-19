@@ -8,6 +8,12 @@ import { applyTheme, useSession, useTerminal, useWorkspace, type FileRecord, typ
 import { filePathMap, loadMessages, logout, openProject, refreshProjects, runCommand } from '../terminal/commands'
 import { EditorPane } from '../editor/EditorPane'
 
+const CHANNEL_HINTS: Record<string, MessageKey> = {
+  general: 'chan.general',
+  development: 'chan.development',
+  'code-review': 'chan.code-review',
+  announcements: 'chan.announcements',
+}
 const NICK_COLORS = ['#7BD88F', '#6CC7E6', '#E6C07B', '#D48BD4', '#E68B8B', '#8BE0C2', '#C7D36C', '#8BB4E6']
 const COMMAND_NAMES = ['help', 'projects', 'create', 'join', 'open', 'files', 'users', 'whoami', 'clear', 'leave', 'logout', 'settings', 'nick', 'msg', 'who', 'me', 'invite']
 
@@ -92,8 +98,8 @@ export function Shell() {
   const layout = preference?.panelLayout
   const left = layout?.hideLeft ? 0 : layout?.left ?? 260
   const right = layout?.hideRight ? 0 : layout?.right ?? 230
-  const bottom = layout?.hideBottom ? 0 : layout?.bottom ?? 150
-  const chat = layout?.hideChat ? 0 : layout?.chat ?? 200
+  const bottom = layout?.hideBottom ? 0 : layout?.bottom ?? 200
+  const chat = layout?.hideChat ? 0 : layout?.chat ?? 220
   const paths = useMemo(() => filePathMap(workspace.files), [workspace.files])
 
   useRealtime()
@@ -225,14 +231,23 @@ export function Shell() {
         </div>
         {project ? (
           <>
-            <div className="pane-title">{t('pane.channels')}</div>
+            <div className="pane-title" title={t('pane.channelsHint')}>{t('pane.channels')}</div>
             <div className="pane-block">
-              {workspace.channels.map((channel) => (
-                <button key={channel.id} className={channel.id === workspace.activeChannelId ? 'item active' : 'item'} onClick={() => void loadMessages(project.id, channel.id)}>
-                  <span className="glyph">#</span><span>{channel.name}</span>
-                  {channel.unread ? <span className="badge">{channel.unread}</span> : null}
-                </button>
-              ))}
+              {workspace.channels.map((channel) => {
+                const hintKey = CHANNEL_HINTS[channel.name]
+                const title = hintKey ? t(hintKey) : t('pane.channelsHint')
+                return (
+                  <button
+                    key={channel.id}
+                    className={channel.id === workspace.activeChannelId ? 'item active' : 'item'}
+                    title={title}
+                    onClick={() => void loadMessages(project.id, channel.id)}
+                  >
+                    <span className="glyph">#</span><span>{channel.name}</span>
+                    {channel.unread ? <span className="badge">{channel.unread}</span> : null}
+                  </button>
+                )
+              })}
             </div>
             <div className="pane-title">{t('pane.files')}<span className="end muted">{workspace.files.filter((file) => file.type === 'FILE').length}</span></div>
             <div className="pane-block grow">
@@ -591,7 +606,11 @@ function Settings() {
         </div>
         <div className="box">
           <span className="box-title">{t('set.editor')}</span>
-          <label className="field"><span>{t('set.fontSize')}</span><input type="number" min={10} max={32} value={preference.fontSize} onChange={(event) => void patch({ fontSize: Number(event.target.value) })} /></label>
+          <label className="field">
+            <span>{t('set.fontSize')}</span>
+            <input type="number" min={10} max={32} value={preference.fontSize} onChange={(event) => void patch({ fontSize: Number(event.target.value) })} />
+          </label>
+          <div className="muted" style={{ marginTop: -4, marginBottom: 8 }}>{t('set.fontSizeHint')}</div>
           <label className="field"><span>{t('set.tabWidth')}</span>
             <select value={preference.tabSize} onChange={(event) => void patch({ tabSize: Number(event.target.value) })}>
               <option value={2}>2</option><option value={4}>4</option><option value={8}>8</option>

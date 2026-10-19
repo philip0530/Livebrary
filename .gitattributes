@@ -1,2 +1,4 @@
+* text=auto eol=lf
+*.md text eol=lf
 deploy/oracle/*.sh text eol=lf
 scripts/render-build.sh text eol=lf

@@ -239,9 +239,13 @@ export function projectRouter(): Router {
       const path = names.reverse().join('/')
       if (safeZipPathError(path)) throw new HttpError(400, 'VALIDATION', '내보낼 수 없는 경로가 있습니다.')
       if (file.type === 'FOLDER') zip.folder(path)
-      else zip.file(path, file.document ? decodeTextState(file.document.yjsState) : '')
+      else {
+        const text = file.document ? decodeTextState(file.document.yjsState) : ''
+        const body = text.startsWith('\uFEFF') ? text : `\uFEFF${text}`
+        zip.file(path, body)
+      }
     }
-    const buffer = await zip.generateAsync({ type: 'nodebuffer' })
+    const buffer = await zip.generateAsync({ type: 'nodebuffer', platform: 'UNIX' })
     const filename = `${access.project.name.replace(/[^\w.-]+/g, '_') || 'project'}.zip`
     res.setHeader('Content-Type', 'application/zip')
     res.setHeader('Content-Disposition', contentDisposition(filename))
