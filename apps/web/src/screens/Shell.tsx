@@ -49,6 +49,13 @@ function stamp(value: string): string {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul', dateStyle: 'short', timeStyle: 'short', hourCycle: 'h23' }).format(new Date(value))
 }
 
+const CHANNEL_KEYS: Record<string, MessageKey> = {
+  general: 'chan.general',
+  development: 'chan.development',
+  'code-review': 'chan.code-review',
+  announcements: 'chan.announcements',
+}
+
 function ChatBody({ content }: { content: string }) {
   const parts = content.split('```')
   return parts.map((part, index) => index % 2 === 1
@@ -103,6 +110,50 @@ export function Shell() {
     tick()
     const timer = window.setInterval(tick, 1000)
     return () => window.clearInterval(timer)
+  }, [])
+
+  // 리눅스 터미널식 전역 단축키: 어디에 포커스가 있어도 동작합니다.
+  useEffect(() => {
+    const focusTerminal = (prefill?: string) => {
+      if (prefill !== undefined) setInput(prefill)
+      document.querySelector<HTMLInputElement>('.prompt input')?.focus()
+    }
+    const togglePanel = (key: 'hideLeft' | 'hideChat' | 'hideRight' | 'hideBottom') => {
+      const pref = useSession.getState().preference
+      if (!pref) return
+      const panelLayout = { ...pref.panelLayout, [key]: !pref.panelLayout?.[key] }
+      void api<{ preference: Preference }>('/api/settings', { method: 'PATCH', body: JSON.stringify({ panelLayout }) })
+        .then((next) => useSession.getState().patchPreference(next.preference))
+        .catch(() => undefined)
+    }
+    const onKey = (event: KeyboardEvent) => {
+      const mod = event.ctrlKey || event.metaKey
+      if (mod && event.key.toLowerCase() === 'p') {
+        event.preventDefault(); event.stopPropagation(); focusTerminal('/open ')
+      } else if (mod && event.key.toLowerCase() === 's') {
+        event.preventDefault(); event.stopPropagation()
+        const ws = useWorkspace.getState()
+        if (ws.project && ws.activeFileId) {
+          void api(`/api/projects/${ws.project.id}/files/${ws.activeFileId}/snapshots`, { method: 'POST', body: '{}' })
+            .then(() => useTerminal.getState().print('snapshot saved', 'ok'))
+            .catch(() => useTerminal.getState().print('snapshot failed', 'error'))
+        }
+      } else if (mod && event.key === 'Tab') {
+        event.preventDefault(); event.stopPropagation()
+        const ws = useWorkspace.getState()
+        if (ws.tabs.length > 1) {
+          const at = ws.tabs.findIndex((tab) => tab.id === ws.activeFileId)
+          ws.setActiveFileId(ws.tabs[(at + 1) % ws.tabs.length]!.id)
+        }
+      } else if (event.altKey && ['1', '2', '3', '4'].includes(event.key)) {
+        event.preventDefault(); event.stopPropagation()
+        togglePanel(({ '1': 'hideLeft', '2': 'hideChat', '3': 'hideRight', '4': 'hideBottom' } as const)[event.key as '1' | '2' | '3' | '4'])
+      } else if (event.key === 'Escape') {
+        focusTerminal()
+      }
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
   }, [])
 
   useEffect(() => {
@@ -279,6 +330,7 @@ export function Shell() {
             {activeChannel ? `#${activeChannel.name}` : 'IRC'}
             <span className="end muted">{project ? t('chat.online', { n: workspace.presence.length }) : t('chat.join')}</span>
           </div>
+          {activeChannel ? <div className="chan-desc">#{activeChannel.name} — {t(CHANNEL_KEYS[activeChannel.name] ?? 'chan.default')}</div> : null}
           <div className="chat-log">
             {project && workspace.messages.length === 0 ? <div className="chat-line system"><span className="ts" /><span className="nick sys">***</span><span className="body">{t('chat.empty')}</span></div> : null}
             {workspace.messages.map((message) => {
@@ -554,6 +606,32 @@ function ChatForm({ projectId, channelId, channelName }: { projectId: string; ch
   )
 }
 
+// 글자 크기: 숫자를 직접 타이핑하고 Enter/포커스 아웃 때만 서버에 반영합니다 (입력 중간값으로 오류 내지 않기).
+function FontSizeField({ value, onCommit }: { value: number; onCommit: (fontSize: number) => void }) {
+  const t = useT()
+  const [text, setText] = useState(String(value))
+  const [shown, setShown] = useState(value)
+  if (value !== shown) { setShown(value); setText(String(value)) }
+  const commit = () => {
+    const next = Number(text)
+    if (Number.isInteger(next) && next >= 10 && next <= 32) onCommit(next)
+    else setText(String(value))
+  }
+  return (
+    <span className="fontsize-field">
+      <input
+        aria-label={t('set.fontSize')}
+        inputMode="numeric"
+        value={text}
+        onChange={(event) => setText(event.target.value.replace(/[^0-9]/g, ''))}
+        onBlur={commit}
+        onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); commit() } }}
+      />
+      <span className="muted">{t('set.fontSizeHint')}</span>
+    </span>
+  )
+}
+
 function Settings() {
   const me = useSession((state) => state.me)
   const preference = useSession((state) => state.preference)
@@ -591,7 +669,7 @@ function Settings() {
         </div>
         <div className="box">
           <span className="box-title">{t('set.editor')}</span>
-          <label className="field"><span>{t('set.fontSize')}</span><input type="number" min={10} max={32} value={preference.fontSize} onChange={(event) => void patch({ fontSize: Number(event.target.value) })} /></label>
+          <div className="field"><span>{t('set.fontSize')}</span><FontSizeField value={preference.fontSize} onCommit={(fontSize) => void patch({ fontSize })} /></div>
           <label className="field"><span>{t('set.tabWidth')}</span>
             <select value={preference.tabSize} onChange={(event) => void patch({ tabSize: Number(event.target.value) })}>
               <option value={2}>2</option><option value={4}>4</option><option value={8}>8</option>
@@ -600,6 +678,14 @@ function Settings() {
           <label className="check"><input type="checkbox" checked={preference.lineNumbers} onChange={(event) => void patch({ lineNumbers: event.target.checked })} />{t('set.lineNumbers')}</label>
           <label className="check"><input type="checkbox" checked={preference.wordWrap} onChange={(event) => void patch({ wordWrap: event.target.checked })} />{t('set.wordWrap')}</label>
           <label className="check"><input type="checkbox" checked={preference.minimap} onChange={(event) => void patch({ minimap: event.target.checked })} />{t('set.minimap')}</label>
+        </div>
+        <div className="box">
+          <span className="box-title">{t('set.shortcuts')}</span>
+          <div className="field"><span><kbd>Esc</kbd></span><span>{t('keys.focus')}</span></div>
+          <div className="field"><span><kbd>Ctrl</kbd>+<kbd>P</kbd></span><span>{t('keys.open')}</span></div>
+          <div className="field"><span><kbd>Ctrl</kbd>+<kbd>S</kbd></span><span>{t('keys.snapshot')}</span></div>
+          <div className="field"><span><kbd>Alt</kbd>+<kbd>1</kbd>~<kbd>4</kbd></span><span>{t('keys.panels')}</span></div>
+          <div className="field"><span><kbd>Ctrl</kbd>+<kbd>Tab</kbd></span><span>{t('keys.tab')}</span></div>
         </div>
       </div>
       <ProfileForm />

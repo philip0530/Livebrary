@@ -9,6 +9,7 @@ import { documentName } from '@livebrary/shared'
 import { useT } from '../lib/i18n'
 import { focusFile } from '../lib/realtime'
 import { useSession, useWorkspace } from '../stores'
+import { MarkdownPreview } from './MarkdownPreview'
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
 import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker'
@@ -82,7 +83,19 @@ export function EditorPane() {
   const file = files.find((item) => item.id === fileId && item.type === 'FILE')
   const writable = project?.role === 'OWNER' || project?.role === 'EDITOR'
   const [editor, setEditor] = useState<EditorHandle | null>(null)
+  const [preview, setPreview] = useState(false)
+  const [previewText, setPreviewText] = useState('')
   const t = useT()
+  const isMarkdown = file?.language === 'markdown'
+
+  // MD 미리보기: 열린 동안 에디터 내용을 주기적으로 읽어 렌더링합니다.
+  useEffect(() => {
+    if (!preview || !editor) return
+    const read = () => setPreviewText(editor.getModel()?.getValue() ?? '')
+    read()
+    const timer = window.setInterval(read, 600)
+    return () => window.clearInterval(timer)
+  }, [preview, editor])
 
   useEffect(() => { syncEditorTheme() }, [preference?.theme])
 
@@ -205,6 +218,14 @@ export function EditorPane() {
   }
   return (
     <div className="editor-wrap">
+      {isMarkdown ? (
+        <div className="md-toolbar">
+          <button className={`cmd ${preview ? '' : 'on'}`} onClick={() => setPreview(false)}>{t('md.edit')}</button>
+          <button className={`cmd ${preview ? 'on' : ''}`} onClick={() => setPreview(true)}>{t('md.preview')}</button>
+        </div>
+      ) : null}
+      {preview && isMarkdown ? <MarkdownPreview text={previewText} /> : null}
+      <div className={preview ? 'editor-host hidden-pane' : 'editor-host'}>
       <Editor
         key={file.id}
         theme="livebrary"
@@ -212,7 +233,8 @@ export function EditorPane() {
         path={file.id}
         onMount={(next) => setEditor(next)}
         options={{
-          fontFamily: '"JetBrains Mono", "Cascadia Code", Consolas, monospace',
+          // 한글 글리프가 없는 폰트만 쓰면 한글이 다른 폰트로 대체돼 깨져 보이므로 한글 고정폭 폰트를 뒤에 둡니다.
+          fontFamily: '"JetBrains Mono", "Cascadia Code", "D2Coding", "Malgun Gothic", Consolas, monospace',
           fontSize: preference?.fontSize ?? 14,
           lineNumbers: preference?.lineNumbers === false ? 'off' : 'on',
           wordWrap: preference?.wordWrap ? 'on' : 'off',
@@ -223,6 +245,7 @@ export function EditorPane() {
           scrollBeyondLastLine: false,
         }}
       />
+      </div>
     </div>
   )
 }

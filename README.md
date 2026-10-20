@@ -22,6 +22,8 @@ npm start
 
 개발 중 화면만 바로 고치려면 `npm run dev:local`을 씁니다. 그때 주소는 `http://127.0.0.1:5173` 입니다.
 
+실시간 협업 시 문제점, 테스트 방법, 유니티 게임 화면 배치 결정은 [docs/collaboration-guide.md](docs/collaboration-guide.md)에 정리했습니다.
+
 ## Render
 
 GitHub에 이 저장소를 올린 뒤 [Render](https://render.com)에서 New, Blueprint를 고르고 이 저장소를 연결합니다. `render.yaml`이 무료 웹 서비스와 PostgreSQL을 만듭니다. 카드는 필요 없습니다.

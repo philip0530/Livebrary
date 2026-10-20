@@ -123,6 +123,20 @@ const en = {
   'ver.restoreConfirm': 'Restore this version? The current content is saved separately.',
   'editor.noFile': 'no file is open',
   'editor.pick': 'pick a file on the left, or type',
+  'md.edit': 'EDIT',
+  'md.preview': 'PREVIEW',
+  'chan.general': 'general chat and everyday talk',
+  'chan.development': 'dev discussion, questions, work in progress',
+  'chan.code-review': 'ask for and give code reviews',
+  'chan.announcements': 'important notices from the owner',
+  'chan.default': 'project chat channel',
+  'set.shortcuts': 'SHORTCUTS',
+  'keys.focus': 'focus terminal input',
+  'keys.open': 'quick-open a file (/open)',
+  'keys.snapshot': 'save a snapshot of the current file',
+  'keys.panels': 'toggle panels (files / chat / members / log)',
+  'keys.tab': 'next file tab',
+  'set.fontSizeHint': 'type a number 10-32, then Enter',
 }
 
 export type MessageKey = keyof typeof en
@@ -249,6 +263,20 @@ const ko: Record<MessageKey, string> = {
   'ver.restoreConfirm': '이 버전으로 복원합니다. 현재 내용은 따로 저장됩니다.',
   'editor.noFile': '열린 파일이 없습니다',
   'editor.pick': '왼쪽에서 파일을 고르거나 입력하세요:',
+  'md.edit': '편집',
+  'md.preview': '미리보기',
+  'chan.general': '잡담과 일상 소통',
+  'chan.development': '개발 논의, 질문, 작업 상황 공유',
+  'chan.code-review': '코드 리뷰 요청과 피드백',
+  'chan.announcements': '소유자의 중요 공지',
+  'chan.default': '프로젝트 채팅 채널',
+  'set.shortcuts': '단축키',
+  'keys.focus': '터미널 입력창으로 이동',
+  'keys.open': '파일 빠르게 열기 (/open 입력)',
+  'keys.snapshot': '현재 파일 스냅샷 저장',
+  'keys.panels': '패널 켜기/끄기 (파일/채팅/멤버/로그)',
+  'keys.tab': '다음 파일 탭으로 이동',
+  'set.fontSizeHint': '10~32 숫자를 입력하고 Enter',
 }
 
 const dictionaries: Record<LocaleId, Record<MessageKey, string>> = { en, ko }

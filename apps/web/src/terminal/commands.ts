@@ -92,6 +92,12 @@ export async function runCommand(line: string): Promise<void> {
     print(' /leave      프로젝트 나가기')
     print(' /logout     로그아웃')
     print(' /clear      화면 지우기')
+    print(' -- 단축키 --')
+    print(' Esc         터미널 입력창으로 이동')
+    print(' Ctrl+P      파일 빠르게 열기')
+    print(' Ctrl+S      현재 파일 스냅샷 저장')
+    print(' Alt+1~4     패널 켜기/끄기 (파일/채팅/멤버/로그)')
+    print(' Ctrl+Tab    다음 파일 탭')
     return
   }
   if (command === 'clear') {
