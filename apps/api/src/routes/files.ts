@@ -154,7 +154,8 @@ export function fileRouter(): Router {
     const text = file.document ? decodeTextState(file.document.yjsState) : ''
     res.setHeader('Content-Type', 'text/plain; charset=utf-8')
     res.setHeader('Content-Disposition', contentDisposition(file.name))
-    res.send(text)
+    // 윈도우 메모장 등이 BOM 없는 UTF-8을 ANSI로 잘못 읽어 한글이 깨지므로 텍스트 파일에는 BOM을 붙입니다.
+    res.send(/\.(md|markdown|txt)$/i.test(file.name) ? String.fromCharCode(0xfeff) + text : text)
   }))
 
   router.get('/:fileId/snapshots', wrap(async (req, res) => {
