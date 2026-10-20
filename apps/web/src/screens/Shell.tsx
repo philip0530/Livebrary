@@ -606,26 +606,40 @@ function ChatForm({ projectId, channelId, channelName }: { projectId: string; ch
   )
 }
 
-// 글자 크기: 숫자를 직접 타이핑하고 Enter/포커스 아웃 때만 서버에 반영합니다 (입력 중간값으로 오류 내지 않기).
+// 글자 크기: 기존 숫자 올리기(스피너)도 그대로 쓰고, 직접 타이핑도 됩니다.
+// 타이핑 중간값(예: 20을 치는 중의 2)으로는 서버에 보내지 않고, 입력이 잠시 멈추거나 Enter/포커스 아웃 때 반영합니다.
 function FontSizeField({ value, onCommit }: { value: number; onCommit: (fontSize: number) => void }) {
   const t = useT()
   const [text, setText] = useState(String(value))
   const [shown, setShown] = useState(value)
   if (value !== shown) { setShown(value); setText(String(value)) }
-  const commit = () => {
-    const next = Number(text)
-    if (Number.isInteger(next) && next >= 10 && next <= 32) onCommit(next)
+  const valid = (raw: string) => {
+    const next = Number(raw)
+    return Number.isInteger(next) && next >= 10 && next <= 32 ? next : null
+  }
+  const commit = (raw: string) => {
+    const next = valid(raw)
+    if (next !== null) onCommit(next)
     else setText(String(value))
   }
   return (
     <span className="fontsize-field">
       <input
+        type="number"
+        min={10}
+        max={32}
+        step={1}
         aria-label={t('set.fontSize')}
-        inputMode="numeric"
         value={text}
-        onChange={(event) => setText(event.target.value.replace(/[^0-9]/g, ''))}
-        onBlur={commit}
-        onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); commit() } }}
+        onChange={(event) => {
+          const raw = event.target.value
+          setText(raw)
+          // 스피너로 올리거나 타이핑이 끝나면 잠시 뒤 자동 반영 (Enter를 기다리지 않아도 됨)
+          const next = valid(raw)
+          if (next !== null) window.setTimeout(() => commit(raw), 600)
+        }}
+        onBlur={() => commit(text)}
+        onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); commit(text) } }}
       />
       <span className="muted">{t('set.fontSizeHint')}</span>
     </span>

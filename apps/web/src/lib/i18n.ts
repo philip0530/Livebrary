@@ -136,7 +136,7 @@ const en = {
   'keys.snapshot': 'save a snapshot of the current file',
   'keys.panels': 'toggle panels (files / chat / members / log)',
   'keys.tab': 'next file tab',
-  'set.fontSizeHint': 'type a number 10-32, then Enter',
+  'set.fontSizeHint': 'use the arrows or type a number (10-32)',
 }
 
 export type MessageKey = keyof typeof en
@@ -276,7 +276,7 @@ const ko: Record<MessageKey, string> = {
   'keys.snapshot': '현재 파일 스냅샷 저장',
   'keys.panels': '패널 켜기/끄기 (파일/채팅/멤버/로그)',
   'keys.tab': '다음 파일 탭으로 이동',
-  'set.fontSizeHint': '10~32 숫자를 입력하고 Enter',
+  'set.fontSizeHint': '화살표로 올리거나 10~32 숫자를 직접 입력',
 }
 
 const dictionaries: Record<LocaleId, Record<MessageKey, string>> = { en, ko }
